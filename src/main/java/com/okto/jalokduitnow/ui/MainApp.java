@@ -9,20 +9,18 @@ import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 import java.io.File;
-import java.text.NumberFormat;
-import java.util.Locale;
 
-/** Entry point. Stage 2: import Excel in the background and show totals. */
+/** Entry point. Stage 3: tabs for Dashboard and Transaksi, plus background Excel import. */
 public class MainApp extends Application {
-    private static final NumberFormat RUPIAH = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID"));
-
     private FinanceService service;
-    private final Label summary = new Label();
     private final Label status = new Label();
     private final ProgressBar progress = new ProgressBar(0);
 
@@ -36,15 +34,22 @@ public class MainApp extends Application {
             showError(e.getMessage());
         }
 
+        TabPane tabs = new TabPane(
+                new Tab("Dashboard", new DashboardView(service)),
+                new Tab("Transaksi", new TransactionView(service)));
+        tabs.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+
         Button importBtn = new Button("Import Excel...");
         importBtn.setOnAction(ev -> chooseAndImport(stage, importBtn));
-        progress.setMaxWidth(Double.MAX_VALUE);
+        progress.setPrefWidth(180);
+        HBox top = new HBox(10, importBtn, progress, status);
+        top.setPadding(new Insets(10));
+        HBox.setHgrow(status, Priority.ALWAYS);
 
-        VBox root = new VBox(12, new Label("JalokDuitNow"), summary, importBtn, progress, status);
-        root.setPadding(new Insets(20));
-        refreshSummary();
+        BorderPane root = new BorderPane(tabs);
+        root.setTop(top);
 
-        stage.setScene(new Scene(root, 800, 500));
+        stage.setScene(new Scene(root, 1000, 650));
         stage.setTitle("JalokDuitNow");
         stage.show();
     }
@@ -62,23 +67,18 @@ public class MainApp extends Application {
 
         // Task callbacks already run on the FX thread.
         task.setOnSucceeded(e -> {
-            progress.progressProperty().unbind();
-            status.textProperty().unbind();
-            importBtn.setDisable(false);
+            finish(importBtn);
             try {
                 service.replaceAll(task.getValue().transactions());
                 int warn = task.getValue().warnings().size();
                 status.setText("Import selesai: " + task.getValue().transactions().size()
                         + " transaksi" + (warn > 0 ? ", " + warn + " baris dilewati" : ""));
-                refreshSummary();
             } catch (StorageException ex) {
                 showError(ex.getMessage());
             }
         });
         task.setOnFailed(e -> {
-            progress.progressProperty().unbind();
-            status.textProperty().unbind();
-            importBtn.setDisable(false);
+            finish(importBtn);
             showError(task.getException().getMessage());
         });
 
@@ -87,11 +87,10 @@ public class MainApp extends Application {
         t.start();
     }
 
-    private void refreshSummary() {
-        summary.setText("Income: " + RUPIAH.format(service.totalIncome())
-                + "   Expense: " + RUPIAH.format(service.totalExpense())
-                + "   Balance: " + RUPIAH.format(service.balance())
-                + "   (" + service.getAll().size() + " transaksi)");
+    private void finish(Button importBtn) {
+        progress.progressProperty().unbind();
+        status.textProperty().unbind();
+        importBtn.setDisable(false);
     }
 
     private void showError(String msg) {

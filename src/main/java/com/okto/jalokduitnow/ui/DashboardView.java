@@ -38,8 +38,8 @@ public class DashboardView extends VBox {
     private final UiState state;
     private final GameService game;
     private final Clock clock;
-    private final HBox gradeChip = new HBox(6);
-    private final HBox streakChip = new HBox(6);
+    private final HBox gradeChip = new HBox(8);     // quiet text, styled by the "meta" class
+    private final HBox streakChip = new HBox(8);
 
     private final ComboBox<Month> monthBox = new ComboBox<>(FXCollections.observableArrayList(Month.values()));
     private final ComboBox<Integer> yearBox = new ComboBox<>();
@@ -60,7 +60,7 @@ public class DashboardView extends VBox {
         this.clock = clock;
         this.recent = new TransactionTable(categories, schemaService, state, actions, true);
 
-        setSpacing(20);
+        setSpacing(24);
 
         monthBox.setConverter(new StringConverter<>() {
             @Override public String toString(Month m) { return m == null ? "" : m.getDisplayName(TextStyle.FULL, Formats.ID); }
@@ -76,35 +76,41 @@ public class DashboardView extends VBox {
         HBox.setHgrow(pickerSpacer, Priority.ALWAYS);
         gradeChip.setAlignment(Pos.CENTER);
         streakChip.setAlignment(Pos.CENTER);
-        HBox picker = new HBox(10, periodLabel, monthBox, yearBox, pickerSpacer, gradeChip, streakChip);
+        HBox picker = new HBox(12, periodLabel, monthBox, yearBox, pickerSpacer, gradeChip, streakChip);
         picker.setAlignment(Pos.CENTER_LEFT);
 
-        HBox stats = new HBox(16,
-                statCard("income", "#16A34A", "Pemasukan", income, "income-text"),
-                statCard("expense", "#EF4444", "Pengeluaran", expense, "expense-text"),
-                statCard("wallet", "#3B82F6", "Saldo", balance, null));
+        HBox stats = statStrip(
+                statCell("Pemasukan", income, "income-text"),
+                statCell("Pengeluaran", expense, "expense-text"),
+                statCell("Saldo", balance, null));
 
         pie.setLegendVisible(false);
         pie.setLabelsVisible(false);
         pie.setAnimated(false);
-        pie.setMinHeight(230);
-        pie.setPrefHeight(230);
+        pie.setMinHeight(280);
+        pie.setPrefHeight(280);
         bar.setAnimated(false);
+        ((NumberAxis) bar.getYAxis()).setTickLabelFormatter(new StringConverter<>() {   // 1500000 -> "1,5 jt"
+            @Override public String toString(Number n) { return compactRupiah(n.doubleValue()); }
+            @Override public Number fromString(String s) { return 0; }
+        });
         bar.setLegendSide(javafx.geometry.Side.BOTTOM);
-        bar.setMinHeight(230);
-        bar.setPrefHeight(230);
-        VBox pieCard = card("Pengeluaran per Kategori", pie);
-        VBox barCard = card("6 Bulan Terakhir", bar);
-        HBox.setHgrow(pieCard, Priority.ALWAYS);
+        bar.setMinHeight(280);
+        bar.setPrefHeight(280);
+        VBox pieCard = card("Pengeluaran per kategori", pie);
+        VBox barCard = card("6 bulan terakhir", bar);
+        HBox.setHgrow(pieCard, Priority.NEVER);      // the bar chart is the main chart and takes the spare width
         HBox.setHgrow(barCard, Priority.ALWAYS);
         pieCard.setPrefWidth(300);
-        barCard.setPrefWidth(480);
+        pieCard.setMinWidth(260);
+        pieCard.setMaxWidth(340);
+        barCard.setPrefWidth(620);
         HBox charts = new HBox(16, pieCard, barCard);
 
-        Label gridTitle = new Label("Kategori Bulan Ini");
+        Label gridTitle = new Label("Kategori bulan ini");
         gridTitle.getStyleClass().add("title-2");
 
-        Label recentTitle = new Label("Transaksi Terbaru");
+        Label recentTitle = new Label("Transaksi terbaru");
         recentTitle.getStyleClass().add("title-2");
         Button seeAll = new Button("Lihat semua");
         seeAll.getStyleClass().add("ghost");
@@ -186,15 +192,15 @@ public class DashboardView extends VBox {
     private void renderGame() {
         MonthlyScore score = game.scoreFor(state.period.get());
         gradeChip.getChildren().setAll(new Label(score.grade() == MonthlyScore.Grade.NONE
-                ? "Nilai bulan ini: -" : "Nilai bulan ini: " + score.grade()));
-        gradeChip.getStyleClass().removeAll("chip", "grade-a", "grade-b", "grade-c", "grade-d");
-        gradeChip.getStyleClass().add("chip");
+                ? "Belum ada nilai bulan ini" : "Nilai bulan ini: " + score.grade()));
+        gradeChip.getStyleClass().removeAll("meta", "grade-a", "grade-b", "grade-c", "grade-d");
+        gradeChip.getStyleClass().add("meta");
         if (score.grade() != MonthlyScore.Grade.NONE) gradeChip.getStyleClass().add("grade-" + score.grade().name().toLowerCase());
 
         int streak = game.profile().getStreak();
         streakChip.getChildren().setAll(IconCatalog.icon("flame", 16), new Label(streak + " hari"));
-        streakChip.getStyleClass().removeAll("chip", "streak");
-        streakChip.getStyleClass().add("chip");
+        streakChip.getStyleClass().removeAll("meta", "streak");
+        streakChip.getStyleClass().add("meta");
         if (streak > 0) streakChip.getStyleClass().add("streak");
     }
 
@@ -247,7 +253,6 @@ public class DashboardView extends VBox {
 
     private VBox categoryCard(Category c, long spent, long totalExpense) {
         Label name = new Label(c.getName());
-        name.setStyle("-fx-font-weight: bold;");
         Label amount = new Label(Formats.rupiah(spent));
         amount.getStyleClass().add("title-2");
 
@@ -257,13 +262,15 @@ public class DashboardView extends VBox {
 
         VBox card = new VBox(12, top);
         card.getStyleClass().addAll("card", "compact");
-        card.setPrefWidth(236);
+        card.setPrefWidth(240);
         card.setMinWidth(200);
 
         ProgressBar progress = new ProgressBar();
         progress.setMaxWidth(Double.MAX_VALUE);
         Label caption = new Label();
         caption.getStyleClass().add("caption");
+        caption.setWrapText(true);
+        caption.setMinHeight(Region.USE_PREF_SIZE); // wrap onto a second line instead of cutting the percentage
         if (c.getMonthlyBudget() != null) {
             double used = (double) spent / c.getMonthlyBudget();
             progress.setProgress(Math.min(used, 1.0));
@@ -274,25 +281,48 @@ public class DashboardView extends VBox {
             caption.setText(Math.round(100.0 * spent / Math.max(1, totalExpense)) + "% dari pengeluaran");
         }
         card.getChildren().addAll(progress, caption);
-        Motion.lift(card);
         return card;
     }
 
-    private static VBox statCard(String iconKey, String color, String title, Label value, String valueClass) {
+    /** The three month totals as one ruled strip: equal cells with a hairline between them. */
+    private static HBox statStrip(VBox... cells) {
+        HBox strip = new HBox();
+        strip.getStyleClass().addAll("card", "stat-strip");
+        for (int i = 0; i < cells.length; i++) {
+            if (i > 0) {
+                Region rule = new Region();
+                rule.getStyleClass().add("divider-v");
+                strip.getChildren().add(rule);
+            }
+            HBox.setHgrow(cells[i], Priority.ALWAYS);
+            strip.getChildren().add(cells[i]);
+        }
+        return strip;
+    }
+
+    private static VBox statCell(String title, Label value, String valueClass) {
         Label t = new Label(title);
         t.getStyleClass().add("muted");
-        value.getStyleClass().add("value");
+        value.getStyleClass().add("figure");
         if (valueClass != null) value.getStyleClass().add(valueClass);
-        HBox top = new HBox(12, Tiles.tile(iconKey, color, 40), t);
-        top.setAlignment(Pos.CENTER_LEFT);
         value.setMinWidth(Region.USE_PREF_SIZE); // never truncate an amount
-        VBox card = new VBox(14, top, value);
-        card.getStyleClass().add("card");
-        card.setMaxWidth(Double.MAX_VALUE);
-        HBox.setHgrow(card, Priority.ALWAYS);
-        card.setPrefWidth(200);
-        Motion.lift(card);
-        return card;
+        VBox cell = new VBox(8, t, value);
+        cell.setPadding(new Insets(0, 24, 0, 24));
+        cell.setMaxWidth(Double.MAX_VALUE);
+        cell.setPrefWidth(200);
+        return cell;
+    }
+
+    /** Axis ticks in short Indonesian units: 500 rb, 1,5 jt. */
+    private static String compactRupiah(double v) {
+        double a = Math.abs(v);
+        if (a >= 1_000_000) return trim(v / 1_000_000) + " jt";
+        if (a >= 1_000) return trim(v / 1_000) + " rb";
+        return trim(v);
+    }
+
+    private static String trim(double d) {
+        return d == Math.rint(d) ? String.valueOf((long) d) : String.format(Formats.ID, "%.1f", d);
     }
 
     private static VBox card(String title, javafx.scene.Node content) {

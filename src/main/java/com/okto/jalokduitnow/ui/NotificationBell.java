@@ -39,7 +39,6 @@ public class NotificationBell extends StackPane {
         bell.setGraphic(IconCatalog.icon("bell", 18));
         bell.getStyleClass().add("icon-button");
         bell.setOnAction(e -> toggle(bell));
-        Motion.grow(bell);
 
         badge.getStyleClass().add("badge-count");
         badge.setMouseTransparent(true);

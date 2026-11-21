@@ -275,7 +275,7 @@ public class MainApp extends Application {
         today.getStyleClass().add("muted");
 
         TextField search = new TextField();
-        search.setPromptText("Cari transaksi...");
+        search.setPromptText("Cari transaksi");
         search.setPrefWidth(280);
         search.textProperty().bindBidirectional(state.search);
         search.textProperty().addListener((o, a, text) -> {
@@ -290,7 +290,6 @@ public class MainApp extends Application {
         themeToggle.selectedProperty().bindBidirectional(Theme.darkProperty());
         themeToggle.graphicProperty().bind(javafx.beans.binding.Bindings.createObjectBinding(
                 () -> IconCatalog.icon(themeToggle.isSelected() ? "sun" : "moon", 18), themeToggle.selectedProperty()));
-        Motion.grow(themeToggle);
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);

@@ -1,15 +1,17 @@
-/* Light palette. Every color of the app lives in a theme-*.css file as a variable. */
+/* Light palette. Every color of the app lives in a theme-*.css file as a variable.
+   Neutral ramp (no blue cast); -line is the hairline used instead of shadows to separate surfaces. */
 .root {
-    -bg: #F4F6FA;
+    -bg: #F5F5F6;
     -surface: #FFFFFF;
-    -surface-alt: #EEF2F8;
-    -input-bg: #F4F6FA;
-    -hover: #E6ECF5;
-    -track: #E5EAF2;
-    -scroll-thumb: #D1D8E4;
+    -surface-alt: #EFEFF1;
+    -input-bg: #F5F5F6;
+    -hover: #E7E7EA;
+    -track: #E6E6E9;
+    -scroll-thumb: #D2D2D7;
+    -line: rgba(0, 0, 0, 0.08);
 
-    -text: #1F2937;
-    -muted: #9CA3AF;
+    -text: #1D1D20;
+    -muted: #6A6A72;
 
     -accent: #3B82F6;
     -accent-dark: #2563EB;
@@ -24,9 +26,9 @@
     -warning: #F59E0B;
     -warning-soft: rgba(245, 158, 11, 0.14);
 
-    -shadow: rgba(31, 41, 55, 0.08);
+    -shadow: rgba(0, 0, 0, 0.06);
 
     -chart-income: #86D7B0;
     -chart-expense: #F7A8A8;
-    -chart-text: #9CA3AF;
+    -chart-text: #6A6A72;
 }

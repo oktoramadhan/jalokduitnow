@@ -75,14 +75,14 @@ public class DetailPanel extends VBox {
 
         Category category = categories.find(t.getCategoryId()).orElse(null);
         Label amount = new Label(Formats.signedRupiah(t.signedAmount()));
-        amount.getStyleClass().addAll("value-big", t.signedAmount() > 0 ? "income-text" : "expense-text");
+        amount.getStyleClass().addAll("figure", t.signedAmount() > 0 ? "income-text" : "expense-text");
         Label typeText = new Label(t.typeLabel());
         HBox pill = new HBox(typeText);
         pill.getStyleClass().addAll("pill", t.signedAmount() > 0 ? "income" : "expense");
         pill.setMaxWidth(Region.USE_PREF_SIZE);
 
         Label categoryName = new Label(category == null ? "?" : category.getName());
-        categoryName.setStyle("-fx-font-weight: bold; -fx-font-size: 15px;");
+        categoryName.getStyleClass().add("detail-name");
         HBox categoryRow = new HBox(12, category == null ? new Label("•") : Tiles.tile(category, 44), categoryName);
         categoryRow.setAlignment(Pos.CENTER_LEFT);
 
@@ -104,7 +104,6 @@ public class DetailPanel extends VBox {
         Tooltip.install(share, new Tooltip("Segera hadir"));
         HBox buttons = new HBox(8, edit, delete, share);
         buttons.setAlignment(Pos.CENTER_LEFT);
-        for (Button b : new Button[]{edit, delete, share}) Motion.grow(b);
 
         getChildren().addAll(header, categoryRow, amount, pill, divider(), rows, buttons);
     }
@@ -121,7 +120,7 @@ public class DetailPanel extends VBox {
         month.getStyleClass().add("muted");
 
         Label balance = new Label(Formats.rupiah(s.balance()));
-        balance.getStyleClass().addAll("value-big");
+        balance.getStyleClass().add("figure");
         if (s.balance() != 0) balance.getStyleClass().add(s.balance() > 0 ? "income-text" : "expense-text");
         Label balanceCaption = new Label("Saldo bulan ini");
         balanceCaption.getStyleClass().add("caption");
@@ -142,10 +141,9 @@ public class DetailPanel extends VBox {
         if (!byCategory.isEmpty()) {
             Label top = new Label("Pengeluaran Terbesar");
             top.getStyleClass().add("title-2");
-            VBox list = new VBox(14);
+            VBox list = new VBox(16);
             byCategory.entrySet().stream().limit(3).forEach(e -> categories.find(e.getKey()).ifPresent(c -> {
                 Label name = new Label(c.getName());
-                name.setStyle("-fx-font-weight: bold;");
                 Label amount = new Label(Formats.rupiah(e.getValue()));
                 amount.getStyleClass().add("muted");
                 ProgressBar share = new ProgressBar((double) e.getValue() / Math.max(1, s.expense()));
@@ -168,6 +166,7 @@ public class DetailPanel extends VBox {
     private static HBox row(String label, Node value) {
         Label l = new Label(label);
         l.getStyleClass().add("muted");
+        l.setMinWidth(Region.USE_PREF_SIZE);
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         HBox row = new HBox(12, l, spacer, value);
@@ -177,8 +176,8 @@ public class DetailPanel extends VBox {
 
     private static Label valueLabel(String text) {
         Label l = new Label(text);
-        l.setStyle("-fx-font-weight: bold;");
         l.setWrapText(true);
+        l.setMinWidth(Region.USE_PREF_SIZE);
         l.setMaxWidth(180);
         l.setAlignment(Pos.CENTER_RIGHT);
         return l;

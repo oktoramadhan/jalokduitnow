@@ -1,5 +1,6 @@
-/* Soft-card dashboard style. No colors here: everything comes from the variables in theme-light.css / theme-dark.css.
-   Spacing scale: page 28, card 20, gap 16-20, input 10x14, control radius 12, card radius 18. */
+/* Cash-book dashboard style. No colors here: everything comes from the variables in theme-light.css / theme-dark.css.
+   Spacing: 4px grid (page 28, card 20, gap 16, nav row 36). Radius: controls 10, cards 16.
+   Surfaces are separated by a 1px -line hairline, not shadows; shadows are kept only for floating popups and toasts. */
 
 .root {
     -fx-background-color: -bg;
@@ -11,16 +12,26 @@
     -fx-accent: -accent;
     -fx-focus-color: transparent;
     -fx-faint-focus-color: transparent;
-    -fx-font-family: "System";
+    -fx-font-family: "Helvetica";   /* the macOS "System" font clips the last glyph of text ("33%" lost its %) */
     -fx-font-size: 13px;
 }
 
-.label { -fx-text-fill: -text; }
+/* keyboard focus ring; :focus-visible does not fire for mouse clicks */
+.button:focus-visible, .toggle-button:focus-visible {
+    -fx-border-color: -accent;
+    -fx-border-width: 1.5;
+    -fx-border-radius: 10;
+}
+
+/* Small right padding keeps the last glyph from touching the edge. */
+.label { -fx-text-fill: -text; -fx-padding: 0 3 0 0; }
 .label.muted, .muted { -fx-text-fill: -muted; }
 .title-1 { -fx-font-size: 24px; -fx-font-weight: bold; }
 .title-2 { -fx-font-size: 16px; -fx-font-weight: bold; }
-.caption { -fx-font-size: 11px; -fx-text-fill: -muted; }
+.caption { -fx-font-size: 12px; -fx-text-fill: -muted; }
 .value-big { -fx-font-size: 28px; -fx-font-weight: bold; }
+.figure { -fx-font-size: 28px; }
+.detail-name { -fx-font-size: 15px; }
 .value { -fx-font-size: 22px; -fx-font-weight: bold; }
 .income-text { -fx-text-fill: -income; }
 .expense-text { -fx-text-fill: -expense; }
@@ -50,87 +61,104 @@
 /* ---------- cards ---------- */
 .card {
     -fx-background-color: -surface;
-    -fx-background-radius: 18;
+    -fx-background-radius: 16;
+    -fx-border-color: -line;
+    -fx-border-radius: 16;
     -fx-padding: 20;
-    -fx-effect: dropshadow(gaussian, -shadow, 24, 0.0, 0, 6);
 }
-.card.compact { -fx-padding: 16; }
+.card.compact { -fx-padding: 20; }
+/* income / expense / balance as one ruled strip: cells separated by a vertical hairline */
+.card.stat-strip { -fx-padding: 20 0 20 0; }
+.divider-v { -fx-background-color: -line; -fx-pref-width: 1; -fx-min-width: 1; -fx-max-width: 1; }
 .panel-transparent { -fx-background-color: transparent; }
 
 .pill {
     -fx-background-radius: 99;
     -fx-padding: 4 12 4 12;
-    -fx-font-size: 11px;
-    -fx-font-weight: bold;
+    -fx-font-size: 12px;
 }
 .pill.income { -fx-background-color: -income-soft; }
 .pill.income .label { -fx-text-fill: -income; }
 .pill.expense { -fx-background-color: -expense-soft; }
 .pill.expense .label { -fx-text-fill: -expense; }
-.divider { -fx-background-color: -track; -fx-pref-height: 1; -fx-min-height: 1; -fx-max-height: 1; }
+.divider { -fx-background-color: -line; -fx-pref-height: 1; -fx-min-height: 1; -fx-max-height: 1; }
 
 /* ---------- sidebar ---------- */
 .sidebar {
     -fx-background-color: -surface;
-    -fx-padding: 28 18 24 18;
-    -fx-effect: dropshadow(gaussian, -shadow, 24, 0.0, 4, 0);
+    -fx-border-color: transparent -line transparent transparent;
+    -fx-border-width: 0 1 0 0;
+    -fx-padding: 24 12 24 12;
 }
-.app-name { -fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: -text; }
+.app-name { -fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: -text; }
 .level-card {
-    -fx-background-color: -accent-soft;
-    -fx-background-radius: 14;
-    -fx-padding: 14 16 14 16;
+    -fx-background-color: -surface-alt;
+    -fx-background-radius: 12;
+    -fx-padding: 12 16 12 16;
 }
-.level-card .label { -fx-text-fill: -accent-text; }
+.level-name { -fx-font-size: 14px; -fx-font-weight: bold; }
+.level-compact { -fx-font-size: 12px; -fx-text-fill: -muted; -fx-alignment: center; }
+.rail-toggle {
+    -fx-background-color: transparent;
+    -fx-background-radius: 10;
+    -fx-padding: 8 12 8 12;
+    -fx-cursor: hand;
+}
+.rail-toggle:hover { -fx-background-color: -surface-alt; }
+.rail-toggle .ikonli-font-icon { -fx-icon-color: -muted; }
+.rail-toggle:hover .ikonli-font-icon { -fx-icon-color: -text; }
+.brand-mark .ikonli-font-icon { -fx-icon-color: -text; }
+/* icon column: 12px padding + 16px icon + 12px padding = a 40px collapsed row, so icons keep one x in both states */
 .nav-item {
     -fx-background-color: transparent;
-    -fx-background-radius: 12;
-    -fx-padding: 11 14 11 14;
+    -fx-background-radius: 10;
+    -fx-padding: 10 12 10 12;
     -fx-alignment: center-left;
     -fx-graphic-text-gap: 12;
     -fx-text-fill: -muted;
-    -fx-font-weight: bold;
     -fx-cursor: hand;
 }
-.nav-item:hover { -fx-background-color: -surface-alt; }
+.nav-item:hover { -fx-background-color: -surface-alt; -fx-text-fill: -text; }
+.nav-item:hover .ikonli-font-icon { -fx-icon-color: -text; }
 .nav-item:selected { -fx-background-color: -accent-soft; -fx-text-fill: -accent-text; }
 
 /* ---------- buttons ---------- */
 .button {
     -fx-background-color: -surface-alt;
-    -fx-background-radius: 12;
+    -fx-background-radius: 10;
     -fx-border-width: 0;
-    -fx-padding: 10 18 10 18;
+    -fx-padding: 10 16 10 16;
     -fx-text-fill: -text;
-    -fx-font-weight: bold;
     -fx-cursor: hand;
 }
 .button:hover { -fx-background-color: -hover; }
 .button:disabled { -fx-opacity: 0.45; }
 .button.primary, .button.primary:hover { -fx-text-fill: white; }
-.button.primary { -fx-background-color: -accent; }
-.button.primary:hover { -fx-background-color: -accent-dark; }
+/* white text needs 4.5:1, so the fill is -accent-dark */
+.button.primary { -fx-background-color: -accent-dark; }
+.button.primary:hover { -fx-background-color: derive(-accent-dark, -12%); }
 .button.danger { -fx-background-color: -expense-soft; -fx-text-fill: -expense; }
 .button.danger:hover { -fx-background-color: -expense-soft; -fx-opacity: 0.8; }
 .button.ghost { -fx-background-color: transparent; -fx-text-fill: -muted; -fx-padding: 6 10 6 10; }
 .button.ghost:hover { -fx-background-color: -surface-alt; }
 .button.close { -fx-font-size: 15px; -fx-padding: 4 10 4 10; }
-.button.add-transaction { -fx-padding: 14 18 14 18; -fx-font-size: 14px; -fx-max-width: infinity; }
+.button.add-transaction { -fx-padding: 10 12 10 12; -fx-max-width: infinity; -fx-alignment: center; -fx-graphic-text-gap: 8; }
 
 /* ---------- inputs ---------- */
 .text-field, .combo-box-base, .date-picker {
     -fx-background-color: -input-bg;
-    -fx-background-radius: 12;
+    -fx-background-radius: 10;
     -fx-border-width: 0;
 }
 .text-field { -fx-padding: 10 14 10 14; -fx-text-fill: -text; -fx-prompt-text-fill: -muted; }
 .text-field:focused, .combo-box-base:focused, .date-picker:focused {
     -fx-border-color: -accent;
     -fx-border-width: 1.5;
-    -fx-border-radius: 12;
+    -fx-border-radius: 10;
 }
 .combo-box-base { -fx-padding: 2 4 2 4; }
-.combo-box-base.on-page { -fx-background-color: -surface; -fx-effect: dropshadow(gaussian, -shadow, 14, 0.0, 0, 3); }
+.combo-box-base.on-page { -fx-background-color: -surface; -fx-border-color: -line; -fx-border-width: 1; -fx-border-radius: 10; }
+.combo-box-base.on-page:focused { -fx-border-color: -accent; -fx-border-width: 1.5; }
 .combo-box-base .arrow-button, .date-picker .arrow-button { -fx-background-color: transparent; -fx-padding: 0 10 0 6; }
 .combo-box-base .arrow, .date-picker .arrow { -fx-background-color: -muted; }
 .combo-box-base > .list-cell, .date-picker .list-cell { -fx-text-fill: -text; -fx-background-color: transparent; -fx-padding: 6 8 6 8; }
@@ -139,7 +167,7 @@
 .check-box:selected .box { -fx-background-color: -accent; }
 .check-box .mark { -fx-background-color: transparent; }
 .check-box:selected .mark { -fx-background-color: white; }   /* the tick shows only when checked */
-.search-box { -fx-background-color: -surface; -fx-background-radius: 14; -fx-padding: 4 8 4 14; -fx-effect: dropshadow(gaussian, -shadow, 16, 0.0, 0, 4); }
+.search-box { -fx-background-color: -surface; -fx-background-radius: 10; -fx-border-color: -line; -fx-border-radius: 10; -fx-padding: 4 8 4 12; -fx-min-height: 40; }
 .search-box .text-field { -fx-background-color: transparent; -fx-border-width: 0; -fx-padding: 8 4 8 4; }
 .search-box .text-field:focused { -fx-border-width: 0; }
 
@@ -160,7 +188,7 @@
 
 /* ---------- lists ---------- */
 .list-view { -fx-background-color: -surface; -fx-background-radius: 14; -fx-padding: 6; -fx-border-width: 0; }
-.list-cell { -fx-background-color: transparent; -fx-background-radius: 12; -fx-padding: 8 10 8 10; -fx-text-fill: -text; }
+.list-cell { -fx-background-color: transparent; -fx-background-radius: 10; -fx-padding: 8 10 8 10; -fx-text-fill: -text; }
 .list-cell:filled:hover { -fx-background-color: -surface-alt; }
 .list-cell:filled:selected { -fx-background-color: -accent-soft; -fx-text-fill: -text; }
 .list-view .placeholder .label { -fx-text-fill: -muted; }
@@ -180,12 +208,12 @@
     -fx-border-color: transparent;
     -fx-padding: 0 4 0 4;
 }
-.table-view .column-header .label { -fx-text-fill: -muted; -fx-font-size: 11px; -fx-font-weight: bold; -fx-alignment: center-left; }
+.table-view .column-header .label { -fx-text-fill: -muted; -fx-font-size: 12px; -fx-alignment: center-left; }
 .table-view .column-header .column-resize-line { -fx-background-color: transparent; }
 .table-view .column-drag-header { -fx-background-color: transparent; }
 .table-row-cell {
     -fx-background-color: transparent;
-    -fx-background-radius: 14;
+    -fx-background-radius: 10;
     -fx-background-insets: 2 0 2 0;
     -fx-cell-size: 52;
     -fx-border-color: transparent;
@@ -194,11 +222,13 @@
 .table-row-cell:filled:hover { -fx-background-color: -surface-alt; }
 .table-row-cell:filled:selected {
     -fx-background-color: -surface;
-    -fx-effect: dropshadow(gaussian, -shadow, 16, 0.0, 0, 4);
+    -fx-border-color: -line;
+    -fx-border-radius: 10;
+    -fx-border-insets: 2 0 2 0;
 }
 .table-row-cell:empty { -fx-background-color: transparent; -fx-effect: null; }
 .table-cell { -fx-text-fill: -text; -fx-padding: 0 4 0 4; -fx-alignment: center-left; -fx-border-color: transparent; }
-.table-cell.amount { -fx-alignment: center-right; -fx-font-weight: bold; }
+.table-cell.amount { -fx-alignment: center-right; }
 .table-cell.income { -fx-text-fill: -income; }
 .table-cell.expense { -fx-text-fill: -expense; }
 .table-cell.muted { -fx-text-fill: -muted; }
@@ -217,8 +247,10 @@
 .scroll-bar .increment-arrow, .scroll-bar .decrement-arrow { -fx-shape: ""; -fx-padding: 0; }
 
 /* ---------- progress ---------- */
-.progress-bar > .track { -fx-background-color: -track; -fx-background-radius: 99; -fx-background-insets: 0; -fx-padding: 4; }
-.progress-bar > .bar { -fx-background-color: -accent; -fx-background-radius: 99; -fx-background-insets: 0; -fx-padding: 4; }
+.progress-bar { -fx-pref-height: 8; -fx-min-height: 8; }
+.card .caption { -fx-padding: 2 0 0 0; }
+.progress-bar > .track { -fx-background-color: -track; -fx-background-radius: 99; -fx-background-insets: 0; -fx-padding: 0; }
+.progress-bar > .bar { -fx-background-color: -accent; -fx-background-radius: 99; -fx-background-insets: 0; -fx-padding: 0; }
 .progress-bar.over > .bar { -fx-background-color: -expense; }
 
 /* ---------- charts: pastel, no borders, no grid lines ---------- */
@@ -229,14 +261,16 @@
 .chart-vertical-grid-lines, .chart-horizontal-grid-lines,
 .chart-alternative-row-fill, .chart-alternative-column-fill,
 .chart-vertical-zero-line, .chart-horizontal-zero-line { -fx-stroke: transparent; -fx-background-color: transparent; }
-.axis { -fx-tick-label-fill: -chart-text; -fx-font-size: 11px; }
+.bar-chart { -fx-bar-gap: 4; -fx-category-gap: 24; }
+.axis { -fx-tick-label-fill: -chart-text; -fx-font-size: 12px; }
+.chart-horizontal-grid-lines { -fx-stroke: -line; -fx-stroke-width: 1; }
 .axis-tick-mark, .axis-minor-tick-mark { -fx-stroke: transparent; }
 .axis:left, .axis:bottom { -fx-border-color: transparent; }
-.chart-bar { -fx-background-radius: 8 8 0 0; -fx-background-insets: 0; -fx-border-color: transparent; }
+.chart-bar { -fx-background-radius: 4 4 0 0; -fx-background-insets: 0; -fx-border-color: transparent; }
 .chart-bar.series0 { -fx-bar-fill: -chart-income; }
 .chart-bar.series1 { -fx-bar-fill: -chart-expense; }
 .chart-legend { -fx-background-color: transparent; -fx-padding: 4; }
-.chart-legend-item { -fx-text-fill: -muted; -fx-font-size: 11px; }
+.chart-legend-item { -fx-text-fill: -muted; -fx-font-size: 12px; }
 .default-color0.chart-legend-item-symbol { -fx-background-color: -chart-income; -fx-background-radius: 99; }
 .default-color1.chart-legend-item-symbol { -fx-background-color: -chart-expense; -fx-background-radius: 99; }
 .chart-pie {
@@ -258,15 +292,26 @@
 .separator .line { -fx-border-color: -track; -fx-border-width: 1 0 0 0; }
 .toggle-button.theme-toggle {
     -fx-background-color: -surface;
-    -fx-background-radius: 14;
-    -fx-padding: 10 14 10 14;
-    -fx-effect: dropshadow(gaussian, -shadow, 16, 0.0, 0, 4);
+    -fx-background-radius: 10;
+    -fx-border-color: -line;
+    -fx-border-radius: 10;
+    -fx-padding: 10 12 10 12;
+    -fx-min-height: 40;
     -fx-cursor: hand;
 }
 
 /* ---------- gamification ---------- */
-.chip { -fx-background-radius: 99; -fx-padding: 6 14 6 12; -fx-background-color: -surface-alt; }
-.chip .label { -fx-font-weight: bold; }
+.meta { -fx-padding: 0; }
+.meta .label { -fx-text-fill: -muted; }
+.meta.grade-a .label { -fx-text-fill: -income; }
+.meta.grade-b .label { -fx-text-fill: -text; }
+.meta.grade-c .label { -fx-text-fill: -warning; }
+.meta.grade-d .label { -fx-text-fill: -expense; }
+.meta.streak .label { -fx-text-fill: -text; }
+.meta .ikonli-font-icon { -fx-icon-color: -muted; }
+.meta.streak .ikonli-font-icon { -fx-icon-color: -warning; }
+.chip { -fx-background-radius: 99; -fx-padding: 8 12 8 12; -fx-background-color: -surface-alt; }
+.chip .label { -fx-font-weight: normal; }
 .chip.grade-a { -fx-background-color: -income-soft; }
 .chip.grade-a .label, .chip.grade-a .ikonli-font-icon { -fx-text-fill: -income; -fx-icon-color: -income; }
 .chip.grade-b { -fx-background-color: -accent-soft; }
@@ -279,12 +324,12 @@
 .chip.streak .label { -fx-text-fill: -warning; }
 .chip.streak .ikonli-font-icon { -fx-icon-color: -warning; }
 .chip.reward { -fx-background-color: -accent-soft; -fx-padding: 4 12 4 12; }
-.chip.reward .label { -fx-text-fill: -accent-text; -fx-font-size: 11px; }
+.chip.reward .label { -fx-text-fill: -accent-text; -fx-font-size: 12px; }
 .chip.done { -fx-background-color: -income-soft; -fx-padding: 4 12 4 10; }
-.chip.done .label { -fx-text-fill: -income; -fx-font-size: 11px; }
+.chip.done .label { -fx-text-fill: -income; -fx-font-size: 12px; }
 .chip.done .ikonli-font-icon { -fx-icon-color: -income; }
 .chip.failed { -fx-background-color: -expense-soft; -fx-padding: 4 12 4 12; }
-.chip.failed .label { -fx-text-fill: -expense; -fx-font-size: 11px; }
+.chip.failed .label { -fx-text-fill: -expense; -fx-font-size: 12px; }
 .badge-card.locked .label { -fx-text-fill: -muted; }
 .badge-card.locked .ikonli-font-icon { -fx-icon-color: -muted; }
 .progress-bar.done > .bar { -fx-background-color: -income; }
@@ -314,9 +359,11 @@
 /* ---------- notifications ---------- */
 .button.icon-button {
     -fx-background-color: -surface;
-    -fx-background-radius: 14;
-    -fx-padding: 10 14 10 14;
-    -fx-effect: dropshadow(gaussian, -shadow, 16, 0.0, 0, 4);
+    -fx-background-radius: 10;
+    -fx-border-color: -line;
+    -fx-border-radius: 10;
+    -fx-padding: 10 12 10 12;
+    -fx-min-height: 40;
 }
 .button.icon-button:hover { -fx-background-color: -surface-alt; }
 .badge-count {

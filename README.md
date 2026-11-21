@@ -9,7 +9,7 @@ kecuali kamu sendiri menekan tombol berbagi.
 
 ## Tangkapan layar
 
-![Beranda JalokDuitNow](docs/screenshots/Screenshot%202026-11-21%20at%2018.59.43.png)
+![Beranda JalokDuitNow](docs/screenshots/beranda-expanded.png)
 
 <!-- TODO: tambahkan tangkapan layar lain di docs/screenshots/ (misalnya laporan, quest, tema gelap). -->
 

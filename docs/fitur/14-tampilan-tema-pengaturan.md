@@ -12,7 +12,7 @@ menyembunyikan panel kanan saat jendela sempit.
    ("Ganti tema terang dan gelap. Pilihanmu diingat saat aplikasi dibuka lagi."). Keduanya terhubung ke satu properti.
 2. Halaman **Pengaturan** berisi kartu berurutan: **Tampilan**, **Donor** ([10](10-kirim-ke-donatur.md)), **Pengingat** ([11](11-pengingat-notifikasi.md)),
    **Ekspor dan Cadangan** dan **Pulihkan dari Cadangan** ([12](12-ekspor-cadangan-pemulihan.md)), dan **Zona Berbahaya** ([13](13-zona-berbahaya.md)).
-3. Navigasi di sidebar: **Beranda**, **Transaksi**, **Kategori**, **Kolom**, **Laporan**, **Quest & Badge**, **Pengaturan** (`ui/Page`).
+3. Navigasi di sidebar: **Beranda**, **Transaksi**, **Kategori**, **Kolom**, **Laporan**, **Quest & Badge**, **Pengaturan** (`ui/Page`). Tombol panah di atas sidebar mengecilkannya menjadi deretan ikon (64 px) dan melebarkannya lagi (240 px); sidebar selalu mulai melebar, dan pilihan ini tidak disimpan setelah aplikasi ditutup (`ui/Sidebar`).
 4. Perkecil jendela: panel **Detail Transaksi** di kanan hilang di bawah lebar 1180; lebar minimal jendela 900 dan tinggi minimal 620.
 
 ## Aturan dan batasan
@@ -29,7 +29,7 @@ menyembunyikan panel kanan saat jendela sempit.
 | Panel kanan | hanya di Beranda dan Transaksi, dan hanya bila lebar scene >= 1180 | `MainApp.SHOW_DETAIL_FROM`, `updateDetailVisibility` |
 | Format angka dan tanggal | `Locale` id-ID: `Rp 25.000`, `21 November 2026` | `ui/Formats`, `util/Rupiah` |
 | Toast | di kanan bawah, maksimal 4 terlihat, tampil sekitar 2,6 detik, tidak menangkap klik | `ui/ToastHost` |
-| Animasi hover | 120 ms (kartu naik 2 px, tombol membesar 1,03x, navigasi bergeser 3 px) karena CSS JavaFX tidak punya transisi | `ui/Motion` |
+| Animasi | sidebar melebar/mengecil 160 ms; hover pada tombol, navigasi, dan kartu Beranda hanya mengganti warna (kartu di halaman Quest masih naik 2 px) | `ui/Sidebar`, `ui/Motion` |
 | Salam di header | pagi (< 11), siang (< 15), sore (< 18), malam; menurut `Clock` | `MainApp.greetingText` |
 | Reset pabrik | tema kembali terang tanpa menulis `settings.properties` | `Theme.resetToDefault` |
 

@@ -12,6 +12,9 @@ import com.okto.jalokduitnow.service.AutoBackupService;
 import com.okto.jalokduitnow.service.DataReloader;
 import com.okto.jalokduitnow.service.PeriodRange;
 import com.okto.jalokduitnow.service.RestoreService;
+import com.okto.jalokduitnow.service.DeleteAction;
+import com.okto.jalokduitnow.service.DeleteDataService;
+import com.okto.jalokduitnow.service.DeletePostActions;
 import com.okto.jalokduitnow.storage.FileSwapper;
 import com.okto.jalokduitnow.reminder.NotificationAction;
 import com.okto.jalokduitnow.service.NotificationCenter;
@@ -175,11 +178,31 @@ public class MainApp extends Application {
             donorSettings.flush();
             reminderSettings.flush();
         };
+        // delete data: safety backup, atomic swap, reload every service; rewards are suspended and obsolete reminders removed
+        DeleteDataService deleteService;
+        try {
+            deleteService = new DeleteDataService(dir, autoBackups, new FileSwapper(), Platform::runLater, () -> {
+                dataReloader.reloadAll();
+                state.selected.set(null);
+                state.period.set(PeriodRange.defaultMonth(service.summaryByMonth().keySet(), clock));
+            }, new DeletePostActions(notificationCenter, reminderLog, gameService, action -> {
+                if (action == DeleteAction.FACTORY) Theme.resetToDefault();
+            }), clock);
+        } catch (StorageException e) {
+            throw new IllegalStateException(e.getMessage(), e);
+        }
+        Runnable openRestoreOfNewest = () -> openRestore(restoreService, flushAll, clock, autoBackups.list().stream()
+                .filter(f -> f.kind() == AutoBackupService.Kind.SAFETY).max(java.util.Comparator.comparing(AutoBackupService.BackupFile::modified))
+                .map(AutoBackupService.BackupFile::path).orElse(null));
+        javafx.scene.Node dangerZone = new DangerZonePanel(action -> DeleteDataDialog.show(action, deleteService, backupService, flushAll,
+                () -> notificationCenter.getAll().size(), result -> announceDeletion(result, clock),
+                result -> openRestore(restoreService, flushAll, clock, result.safetyBackup())));
+        this.restoreOpener = openRestoreOfNewest;
         javafx.scene.Node restoreCard = new RestorePanel(restoreService, backupService, autoBackups, flushAll, clock,
                 result -> announceRestore(result, clock));
         pages.put(Page.SETTINGS, scrolling(new SettingsView(gameService, recipientService, donorSettings,
                 categoryService, backupService, state, clock, reminderSettings, reminderService, traySupported,
-                restoreCard)));
+                restoreCard, dangerZone)));
 
         sidebar = new Sidebar(this::show, actions::add, gameService);
         DetailPanel detail = new DetailPanel(service, categoryService, schemaService, state, actions);
@@ -277,6 +300,19 @@ public class MainApp extends Application {
         return header;
     }
 
+    private Runnable restoreOpener;
+
+    private void openRestore(RestoreService restoreService, Runnable flushAll, Clock clock, java.nio.file.Path preselected) {
+        RestoreDialog.show(restoreService, backupService, autoBackups, flushAll, clock, r -> announceRestore(r, clock), preselected);
+    }
+
+    /** A toast and a notification (with a time-limited "Pulihkan" button) after a successful deletion. */
+    private void announceDeletion(DeleteDataService.DeleteResult result, Clock clock) {
+        String message = result.action().title() + " selesai. Cadangan pengaman: " + result.safetyBackup().getFileName();
+        notificationCenter.add(AppNotification.create("Data dihapus", message, Instant.now(clock), NotificationAction.OPEN_RESTORE, null));
+        if (toastHost != null) toastHost.show(result.action().title() + " selesai", "Cadangan pengaman: " + result.safetyBackup().getFileName(), "delete", "#DC2626");
+    }
+
     /** A toast and an entry in the notification center after a successful restore. */
     private void announceRestore(RestoreService.RestoreResult result, Clock clock) {
         String message = "Data dipulihkan dari cadangan. Salinan pengaman data sebelumnya: " + result.safetyBackup().getFileName();
@@ -306,6 +342,7 @@ public class MainApp extends Application {
             case ADD_TRANSACTION -> actions.add();
             case OPEN_REPORT -> show(Page.REPORT);
             case OPEN_CATEGORIES -> show(Page.CATEGORIES);
+            case OPEN_RESTORE -> { if (restoreOpener != null) restoreOpener.run(); }
             case NONE -> { }
         }
     }

@@ -32,6 +32,10 @@ final class RestoreWorld {
     final BackupService backup;
     final AutoBackupService autoBackups;
     final DataReloader reloader;
+    final NotificationCenter notifications;
+    final ReminderLog reminderLog;
+    int uiResets;
+    DeleteAction lastUiReset;
 
     private RestoreWorld(Path dir, LocalDate today) throws Exception {
         this.dir = dir;
@@ -51,6 +55,10 @@ final class RestoreWorld {
         backup = new BackupService(fx.finance, fx.schema, fx.categories, game, recipients, donors, reminders, clock);
         autoBackups = new AutoBackupService(dir.resolve("backups"), clock);
         reloader = new DataReloader(fx.finance, fx.schema, fx.categories, game, recipients, donors, reminders);
+        notifications = new NotificationCenter(new JsonRepository<>(dir.resolve("notifications.json"), NotificationDto.class));
+        reminderLog = new ReminderLog(new JsonRepository<>(dir.resolve("reminder-log.json"), ReminderLogDto.class));
+        notifications.load();
+        reminderLog.load();
     }
 
     static RestoreWorld create(Path dir) throws Exception {
@@ -90,7 +98,19 @@ final class RestoreWorld {
         return this;
     }
 
+    DeleteDataService deleteService() throws com.okto.jalokduitnow.exception.StorageException {
+        return deleteService(new FileSwapper(FileSwapper.retryingMover(1, 0)), Runnable::run, reloader);
+    }
+
+    DeleteDataService deleteService(FileSwapper swapper, Executor ui, RestoreService.Reloader reload)
+            throws com.okto.jalokduitnow.exception.StorageException {
+        return new DeleteDataService(dir, autoBackups, swapper, ui, reload,
+                new DeletePostActions(notifications, reminderLog, game, action -> { uiResets++; lastUiReset = action; }), clock);
+    }
+
     void flush() {
+        notifications.flush();
+        reminderLog.flush();
         fx.flush();
         game.flush();
         recipients.flush();

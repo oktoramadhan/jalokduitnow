@@ -31,7 +31,7 @@ public class AutoBackupService {
     public static final int KEEP_AUTO = 14;
     public static final int KEEP_SAFETY = 10;
     static final String AUTO_PREFIX = "otomatis-";
-    static final String SAFETY_PREFIX = "sebelum-pemulihan-";
+    static final String SAFETY_PREFIX = "sebelum-";           // "sebelum-pemulihan-..." and "sebelum-hapus-..."
     private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
 
     public enum Kind { AUTO, SAFETY, OTHER }
@@ -64,9 +64,18 @@ public class AutoBackupService {
 
     /** Writes a safety backup of the data as it is right now (called before a restore). @return the file written */
     public Path writeSafety(String backupJson) throws StorageException {
+        return writeSafety(backupJson, "pemulihan");
+    }
+
+    /**
+     * Writes a safety backup named "sebelum-<reason>-<time>.json" (reason: "pemulihan" before a restore, "hapus" before data
+     * is deleted). Both kinds are listed together and can be restored like any backup.
+     */
+    public Path writeSafety(String backupJson, String reason) throws StorageException {
         String stamp = LocalDateTime.now(clock).format(STAMP);
-        Path file = folder.resolve(SAFETY_PREFIX + stamp + ".json");
-        for (int n = 2; Files.exists(file); n++) file = folder.resolve(SAFETY_PREFIX + stamp + "-" + n + ".json");
+        String base = SAFETY_PREFIX + reason + "-" + stamp;
+        Path file = folder.resolve(base + ".json");
+        for (int n = 2; Files.exists(file); n++) file = folder.resolve(base + "-" + n + ".json");
         write(file, backupJson);
         prune();
         return file;
@@ -88,6 +97,10 @@ public class AutoBackupService {
     // ---- internals ----
 
     private void write(Path file, String json) throws StorageException {
+        // a "backups" folder that is a symbolic link could lead anywhere: never write or prune through it
+        if (Files.isSymbolicLink(folder)) {
+            throw new StorageException("Folder cadangan adalah symbolic link dan tidak dipakai. Hapus link itu agar cadangan bisa dibuat.", null);
+        }
         ExportFile.write(file, json, false);
         try {
             Files.setLastModifiedTime(file, FileTime.from(clock.instant()));   // ordering follows the app's clock
@@ -113,6 +126,7 @@ public class AutoBackupService {
     }
 
     private void prune(Kind kind, int keep) {
+        if (Files.isSymbolicLink(folder)) return;
         List<BackupFile> ofKind = list().stream().filter(f -> f.kind() == kind).toList();   // newest first
         for (int i = keep; i < ofKind.size(); i++) {
             try {

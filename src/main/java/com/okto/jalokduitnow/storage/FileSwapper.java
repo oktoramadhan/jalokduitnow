@@ -110,6 +110,17 @@ public class FileSwapper {
      * @throws StorageException if anything fails; in that case every file is exactly as it was before the call
      */
     public Swap swap(Path dir, Map<String, String> contents) throws StorageException {
+        return swap(dir, contents, List.of());
+    }
+
+    /**
+     * Replaces (or creates) the files in {@code contents} and DELETES the files named in {@code deletions}, all as one unit.
+     * A deleted file is only moved aside (".restore-rollback") until {@link Swap#commit()}, so it can still be brought back.
+     * Names are relative to {@code dir}; a name that would leave the folder is refused before anything is touched.
+     */
+    public Swap swap(Path dir, Map<String, String> contents, java.util.Collection<String> deletions) throws StorageException {
+        for (String name : contents.keySet()) inside(dir, name);
+        for (String name : deletions) inside(dir, name);
         List<Path> temps = new ArrayList<>();
         try {
             Files.createDirectories(dir);
@@ -136,6 +147,14 @@ public class FileSwapper {
                 done.add(new Replaced(target, rollback));         // recorded before step 2 so a failure there is undone too
                 mover.move(temp, target);                          // 2. the new file takes its place
             }
+            for (String name : deletions) {
+                if (contents.containsKey(name)) continue;
+                Path target = dir.resolve(name);
+                if (!Files.exists(target, LinkOption.NOFOLLOW_LINKS)) continue;
+                Path rollback = dir.resolve(name + ROLLBACK_SUFFIX);
+                done.add(new Replaced(target, rollback));
+                mover.move(target, rollback);                      // a deleted file steps aside; commit() removes it for good
+            }
         } catch (IOException e) {
             try {
                 undo(done);
@@ -145,6 +164,16 @@ public class FileSwapper {
             throw new StorageException(lockedMessage(e), e);
         }
         return new Swap(done);
+    }
+
+    /** The path for a name, refused if it is absolute, climbs out with "..", or is empty. */
+    private static Path inside(Path dir, String name) throws StorageException {
+        Path base = dir.toAbsolutePath().normalize();
+        Path resolved = base.resolve(name).normalize();
+        if (name.isBlank() || Path.of(name).isAbsolute() || !resolved.startsWith(base) || resolved.equals(base)) {
+            throw new StorageException("Nama file tidak aman, penggantian dibatalkan: " + name, null);
+        }
+        return resolved;
     }
 
     private void undo(List<Replaced> done) throws StorageException {

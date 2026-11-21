@@ -25,7 +25,7 @@ public class SettingsView extends VBox {
     public SettingsView(GameService game, RecipientService recipients, DonorSettings donorSettings,
                         CategoryService categories, BackupService backup, UiState state, Clock clock,
                         ReminderSettingsService reminderSettings, ReminderService reminders, boolean traySupported,
-                        javafx.scene.Node restoreCard) {
+                        javafx.scene.Node restoreCard, javafx.scene.Node dangerZone) {
         Label title = new Label("Tampilan");
         title.getStyleClass().add("title-2");
 
@@ -45,34 +45,9 @@ public class SettingsView extends VBox {
         card.getStyleClass().add("card");
         card.setMaxWidth(620);
 
-        Label gameTitle = new Label("Progres Game");
-        gameTitle.getStyleClass().add("title-2");
-        Label resetName = new Label("Reset progres game");
-        resetName.setStyle("-fx-font-weight: bold;");
-        Label resetHint = new Label("Mengembalikan XP, level, streak, badge, dan hadiah quest ke awal. "
-                + "Transaksi, kategori, kolom, dan target tabunganmu tidak ikut terhapus.");
-        resetHint.getStyleClass().add("muted");
-        resetHint.setWrapText(true);
-        Button reset = new Button("Reset", IconCatalog.icon("delete", 16));
-        reset.getStyleClass().add("danger");
-        reset.setOnAction(e -> {
-            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
-                    "Reset semua progres game? XP, level, streak, dan badge akan kembali ke awal. Tindakan ini tidak bisa dibatalkan.");
-            confirm.setHeaderText("Reset progres game");
-            Theme.styleDialog(confirm.getDialogPane());
-            confirm.showAndWait().filter(b -> b == ButtonType.OK).ifPresent(b -> game.reset());
-        });
-        Region spacer2 = new Region();
-        HBox.setHgrow(spacer2, Priority.ALWAYS);
-        HBox resetRow = new HBox(16, new VBox(4, resetName, resetHint), spacer2, reset);
-        resetRow.setAlignment(Pos.CENTER_LEFT);
-        VBox gameCard = new VBox(16, gameTitle, resetRow);
-        gameCard.getStyleClass().add("card");
-        gameCard.setMaxWidth(620);
-
         setSpacing(20);
         getChildren().addAll(card, new DonorSettingsPanel(recipients, donorSettings, categories),
                 new RemindersPanel(reminderSettings, reminders, traySupported),
-                new ExportPanel(backup, state, clock), restoreCard, gameCard);
+                new ExportPanel(backup, state, clock), restoreCard, dangerZone);
     }
 }

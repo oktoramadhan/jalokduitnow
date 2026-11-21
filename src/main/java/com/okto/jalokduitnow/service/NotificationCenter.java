@@ -42,6 +42,17 @@ public class NotificationCenter {
         while (items.size() > MAX_KEPT) items.remove(items.size() - 1);
     }
 
+    /** Reads the list from disk again (a missing file means an empty list) and tells the listeners. */
+    public void reload() throws StorageException {
+        load();
+        listeners.forEach(Runnable::run);
+    }
+
+    /** Removes the notifications the test selects (for example the ones about data that no longer exists). */
+    public void removeIf(java.util.function.Predicate<AppNotification> test) {
+        if (items.removeIf(test)) changed();
+    }
+
     public List<AppNotification> getAll() {
         return List.copyOf(items);
     }

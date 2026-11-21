@@ -339,3 +339,5 @@
 /* ---------- restore ---------- */
 .progress-indicator { -fx-progress-color: -accent; }
 .warning-box { -fx-background-color: -warning-soft; -fx-background-radius: 14; -fx-padding: 14; }
+.card.danger-zone { -fx-border-color: -expense; -fx-border-width: 1.5; -fx-border-radius: 20; }
+.card.danger-zone .title-2 .ikonli-font-icon { -fx-icon-color: -expense; }

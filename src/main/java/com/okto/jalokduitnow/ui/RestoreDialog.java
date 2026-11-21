@@ -72,14 +72,20 @@ public final class RestoreDialog {
 
     public static void show(RestoreService service, BackupService backup, AutoBackupService autoBackups, Runnable flushAll,
                             Clock clock, Consumer<RestoreResult> onRestored) {
-        new RestoreDialog(service, backup, autoBackups, flushAll, clock, onRestored).open();
+        new RestoreDialog(service, backup, autoBackups, flushAll, clock, onRestored).open(null);
+    }
+
+    /** Opens straight at the preview of one backup (the "Restore it" shortcut after a deletion). */
+    public static void show(RestoreService service, BackupService backup, AutoBackupService autoBackups, Runnable flushAll,
+                            Clock clock, Consumer<RestoreResult> onRestored, Path preselected) {
+        new RestoreDialog(service, backup, autoBackups, flushAll, clock, onRestored).open(preselected);
     }
 
     // =========================================================================
     // layout
     // =========================================================================
 
-    private void open() {
+    private void open(Path preselected) {
         dialog.setTitle("Pulihkan dari Cadangan");
         ButtonType close = new ButtonType("Tutup", ButtonBar.ButtonData.CANCEL_CLOSE);
         dialog.getDialogPane().getButtonTypes().add(close);
@@ -127,6 +133,7 @@ public final class RestoreDialog {
         content.setPadding(new Insets(8));
         content.setPrefWidth(560);
         dialog.getDialogPane().setContent(content);
+        if (preselected != null) javafx.application.Platform.runLater(() -> prepare(preselected));
         dialog.showAndWait();
     }
 

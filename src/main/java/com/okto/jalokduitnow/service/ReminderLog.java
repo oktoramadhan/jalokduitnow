@@ -38,6 +38,16 @@ public class ReminderLog {
         for (ReminderLogDto dto : repository.findAll()) entries.put(dto.key(), dto.firedAt());
     }
 
+    /** Reads the record from disk again (a missing file means nothing has fired). */
+    public void reload() throws StorageException {
+        load();
+    }
+
+    /** Forgets the records of the reminders whose ids start with the prefix, so they apply fresh to new data. */
+    public void forgetPrefix(String reminderIdPrefix) {
+        if (entries.keySet().removeIf(k -> k.startsWith(reminderIdPrefix))) save();
+    }
+
     public boolean hasFired(String key) {
         return entries.containsKey(key);
     }
@@ -46,6 +56,10 @@ public class ReminderLog {
     public void record(String key, Instant now) {
         entries.put(key, now);
         entries.values().removeIf(at -> at.isBefore(now.minus(KEEP)));
+        save();
+    }
+
+    private void save() {
         autoSave.save(entries.entrySet().stream().map(e -> new ReminderLogDto(e.getKey(), e.getValue())).collect(Collectors.toList()));
     }
 

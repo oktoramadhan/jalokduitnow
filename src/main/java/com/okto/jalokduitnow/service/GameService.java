@@ -242,6 +242,18 @@ public class GameService {
         changed();
     }
 
+    /**
+     * After a game reset: generates this week's quests, WITHOUT paying anything. A quest that the existing transactions
+     * already satisfy is marked as rewarded silently, so the next transaction cannot pay it out for old data.
+     */
+    public void startQuestWeek() {
+        ensureQuestsForThisWeek();
+        for (Quest q : quests) {
+            if (q.evaluate(finance.getAll(), clock).isCompleted()) rewardedQuests.add(q.getId());
+        }
+        changed();
+    }
+
     private void ensureQuestsForThisWeek() {
         QuestPeriod thisWeek = QuestPeriod.weekOf(LocalDate.now(clock));
         if (!quests.isEmpty() && quests.get(0).getPeriod().equals(thisWeek)) return;

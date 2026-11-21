@@ -78,6 +78,16 @@ public final class Theme {
         }
     }
 
+    /** Back to the light theme without writing a settings file (the factory reset removed it). */
+    public static void resetToDefault() {
+        loading = true;
+        try {
+            DARK_MODE.set(false);
+        } finally {
+            loading = false;
+        }
+    }
+
     public static void apply(Scene scene) {
         register(scene.getStylesheets());
     }

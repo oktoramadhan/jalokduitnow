@@ -132,7 +132,7 @@ public class NotificationBell extends StackPane {
             titleRow.getChildren().add(dot);
         }
         VBox text = new VBox(4, titleRow, message, time);
-        if (n.getAction().hasButton()) {
+        if (n.getAction().isAvailable(n.getCreatedAt(), clock.instant())) {
             Button action = new Button(n.getAction().label(), IconCatalog.icon(n.getAction().iconKey(), 14));
             action.getStyleClass().add("primary");
             action.setOnAction(e -> {

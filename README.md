@@ -7,11 +7,11 @@ berjalan di Windows dan macOS.
 Semua data tersimpan di komputermu sendiri. Tidak ada akun, tidak ada server, dan tidak ada data yang dikirim ke mana pun
 kecuali kamu sendiri menekan tombol berbagi.
 
-<!-- TODO: tambahkan tangkapan layar di docs/screenshots/ (misalnya beranda.png, laporan.png, tema-gelap.png) dan tampilkan di sini. -->
-
 ## Tangkapan layar
 
-Belum ada. Simpan gambar di `docs/screenshots/`.
+![Beranda JalokDuitNow](docs/screenshots/Screenshot%202026-11-21%20at%2018.59.43.png)
+
+<!-- TODO: tambahkan tangkapan layar lain di docs/screenshots/ (misalnya laporan, quest, tema gelap). -->
 
 ## Fitur
 

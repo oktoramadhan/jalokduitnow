@@ -533,7 +533,7 @@ JSON, dan menulis dengan pola aman: ke file sementara dulu, lalu dipindahkan ke 
 | `storage/JsonRepository.java` | `saveAll`, `findAll`, `defaultDataDir` | Menulis ke `.tmp`, menyalin versi lama ke `.bak`, lalu `Files.move(..., REPLACE_EXISTING)`. File rusak disalin ke `.corrupt-<waktu>.bak`. Lokasi data: `Path.of(System.getProperty("user.home"), ".jalokduitnow")`. |
 | `storage/ExportFile.java` | `write(Path, String, boolean withBom)` | Menulis teks UTF-8 ke file sementara lalu memindahkannya; opsi BOM agar Excel di Windows membaca huruf dengan benar. |
 | `storage/FileSwapper.java` | `swap`, `Swap.commit`, `Swap.rollback`, `retryingMover` | Mengganti banyak file sekaligus: semua berubah atau tidak sama sekali; `ATOMIC_MOVE` dengan percobaan ulang untuk file terkunci. |
-| `storage/CsvExporter.java` | `export`, `quote` | Ekspor CSV dengan pengutipan gaya RFC 4180 dan baris `CRLF`. |
+| `storage/CsvExporter.java` | `render`, `quote` | Ekspor CSV dengan pengutipan gaya RFC 4180 dan baris `CRLF`. |
 | `storage/BackupDto.java`, `service/BackupService.java`, `service/RestoreService.java` | `backupJson`, `prepare`, `apply` | Cadangan lengkap dalam satu file JSON; pemulihan memvalidasi dulu (`BackupValidator`). |
 | `service/AutoBackupService.java` | `writeDailyIfMissing`, `writeSafety`, `list` | Cadangan otomatis harian dan cadangan pengaman; `Files.list` dalam try-with-resources. |
 | `storage/SafeDataFolder.java` | `existingDataFiles`, `resolveOwned` | Memeriksa path sebelum dihapus: tidak mengikuti symbolic link dan hanya file buatan aplikasi. |
@@ -583,7 +583,7 @@ bisa rusak. Opsi ini hanya untuk ekspor CSV, tidak untuk file JSON.
 
 JavaFX membangun antarmuka sebagai scene graph: pohon node (tombol, label, layout) di dalam scene dan stage. Layout
 (`VBox`, `HBox`, `BorderPane`) menata node. Properti dan binding menyambungkan data ke tampilan, dan CSS mengatur gaya.
-UI proyek ini dibuat lewat kode Java (tidak memakai FXML).
+UI proyek ini dibuat lewat kode Java; tidak ada file FXML di proyek.
 
 ### Penerapan di JalokDuitNow
 
@@ -626,9 +626,9 @@ sama. Dengan properti bersama, satu perubahan otomatis memperbarui semua tampila
 Binding menghubungkan dua nilai agar yang satu mengikuti yang lain. Di `MainApp`, kolom pencarian dihubungkan dua arah ke
 `state.search`; saat teks berubah, tabel di halaman Transaksi ikut menyaring.
 
-**Kenapa UI dibuat dengan kode, bukan FXML?**
-Karena banyak tampilan dibangun dinamis dari data (kolom kustom, kategori, tema). Sejauh ini seluruh UI proyek ditulis di
-Java; tidak ada file FXML di proyek.
+**Bagaimana tampilan ikut berubah saat data berubah?**
+Service menyimpan daftar pendengar (`Runnable`) dan memanggilnya setelah data berubah. `DashboardView` dan `TransactionView`
+mendaftar dengan `finance.addListener(this::refresh)`, jadi setelah `FinanceService.add` keduanya memuat ulang isinya.
 
 ---
 
@@ -699,15 +699,15 @@ membuang semua penyimpanan yang masih menunggu, sehingga data lama tidak bisa me
 ## Ringkasan
 
 Jumlah adalah hasil pencarian teks pada `src/main/java` (kemunculan, bukan jumlah kelas), jadi gunakan sebagai gambaran
-kasar. Tanda "lemah" berarti topik ada tetapi pemakaiannya terbatas; lihat [Celah materi](#celah-materi).
+kasar. Topik yang tidak ada atau terbatas dicatat di [Celah materi](#celah-materi).
 
 | Topik | Jumlah tempat (perkiraan) | Contoh terbaik |
 |-------|---------------------------|----------------|
 | Class dan Object | 163 berkas; 43 record; 7 enum | `model/Category.java` |
 | Java Variables | 91 `static final`; 5 `var`; `long` untuk uang | `model/Transaction.java`, `model/XpPolicy.java` |
 | Inheritance | 27 subclass domain, 19 kelas UI, 8 exception | `model/Transaction.java` dengan `Expense`/`Income` |
-| Encapsulation | 93 berkas dengan field privat; 147 `@Override` total | `model/GameProfile.java` |
-| Polymorphism | 147 `@Override`; 4 pasang overloading | `service/GameService.java` (`evaluateBadges`) |
+| Encapsulation | 93 berkas dengan field privat | `model/GameProfile.java` |
+| Polymorphism | 147 `@Override`; overloading pada `Expense`, `XpPolicy`, `WhatsAppSharer` (constructor), `AutoBackupService.writeSafety`, `FileSwapper.swap`, `RestoreDialog.show` | `service/GameService.java` (`evaluateBadges`) |
 | Abstraction | 6 abstract class; 9 interface tingkat atas; 1 sealed interface | `schema/FieldType.java`, `report/AbstractReportGenerator.java` |
 | String | 4 `StringBuilder`, 4 `String.format`, 15 regex, 9 `Locale`, 3 `URLEncoder` | `share/WhatsAppSharer.java`, `util/Rupiah.java` |
 | Generics dan Collections | 5 class generik, 4 generic method; 84 stream; 35 `Optional` | `event/GameEventBus.java`, `storage/JsonRepository.java` |
@@ -843,20 +843,19 @@ sequenceDiagram
 
 ## Celah materi
 
-Daftar jujur topik yang lemah atau tidak ada di kode, dengan saran bila ingin demonstrasi yang lebih kuat.
+Daftar topik yang tidak ada atau terbatas di kode, hanya berdasarkan hasil pencarian di `src/main/java`. Topik di bawah ini
+tidak diimplementasikan, jadi tidak ada contoh kodenya di dokumen ini.
 
-| Topik | Keadaan di kode | Saran penerapan |
-|-------|-----------------|-----------------|
-| Text block (`"""`) | Tidak dipakai sama sekali. | Teks panjang tetap di `AbstractReportGenerator` atau pesan di dialog bisa ditulis sebagai text block. |
-| `Deque`, `Queue`, `PriorityQueue` | Tidak dipakai. Koleksi yang ada: `List`, `Set`, `Map`. | Antrean notifikasi yang menunggu jam tenang di `ReminderService` bisa memakai `ArrayDeque`. |
-| `equals` dan `hashCode` | Tidak ditulis ulang di kelas biasa (hanya record yang mendapatkannya otomatis). | `Category` dan `Recipient` bisa meng-override keduanya berdasarkan `id`. |
-| `Comparable` | Tidak ada kelas yang mengimplementasikannya; pengurutan memakai `Comparator`. | `Transaction` bisa `implements Comparable<Transaction>` berdasarkan tanggal. |
-| Polymorphism lewat `Sharer` | Interface dan dua implementasi ada, tetapi `ReportView` memegang `WhatsAppSharer` dan `ClipboardSharer` secara konkret, bukan `List<Sharer>`. | Ubah menu bagikan menjadi daftar `Sharer` sehingga menambah kanal (misalnya email) tidak mengubah UI. |
-| Default atau static method di interface | Tidak ada method `default` di interface mana pun. | Beri `Sharer` method `default boolean isAvailable()`. |
-| Hierarki exception | Delapan exception kustom, semuanya checked dan sejajar langsung di bawah `Exception`. Tidak ada exception unchecked kustom dan tidak ada induk bersama. | Buat `AppException` sebagai induk, dan `InvalidInputException` untuk kelompok `Invalid*`. |
-| Thread pool | Hanya executor satu thread dan `CompletableFuture` bawaan. Tidak ada `newFixedThreadPool`, `parallelStream`, atau `wait/notify`. | Ekspor CSV atau pembuatan cadangan besar bisa memakai pool kecil bersama. |
-| Java IO klasik | Hampir seluruhnya `java.nio.file`. Stream klasik (`InputStream`, `ObjectOutputStream`, serialisasi) tidak dipakai; `Reader`/`Writer` hanya di `Theme`. | Tidak perlu; NIO adalah pilihan modern. Jika ingin demonstrasi, tampilkan `BufferedReader` pada impor CSV. |
-| FXML | Tidak dipakai; seluruh UI dibuat lewat kode. | Satu dialog sederhana bisa ditulis dengan FXML dan controller untuk perbandingan. |
-| Inheritance dalam | Hierarki hanya 1 sampai 2 tingkat (terdalam: `ReportGenerator` -> `AbstractReportGenerator` -> `DonorReportGenerator`). | Tidak perlu diperdalam; hierarki dangkal justru praktik yang baik. |
-| `var` | Dipakai di 5 tempat saja. | Cukup; tidak perlu diperbanyak. |
-| Encapsulation | `Category.setArchived` adalah setter publik tanpa validasi; `UiState` membuka field `public final`. | Jelaskan sebagai pilihan sadar (status UI bersama), atau ganti `setArchived` dengan `archive()` dan `restore()`. |
+| Topik | Keadaan di kode |
+|-------|-----------------|
+| Text block (`"""`) | Tidak dipakai sama sekali. |
+| `Deque`, `Queue`, `PriorityQueue` | Tidak dipakai. Koleksi yang dipakai: `List`, `Set`, `Map`. |
+| `equals` dan `hashCode` | Tidak ditulis ulang di kelas biasa; hanya record yang mendapatkannya otomatis. |
+| `Comparable` | Tidak ada kelas yang mengimplementasikannya; pengurutan memakai `Comparator`. |
+| Polymorphism lewat `Sharer` | Interface `Sharer` dan dua implementasinya ada, tetapi `ReportView` memegang `WhatsAppSharer` dan `ClipboardSharer` secara konkret, bukan lewat tipe `Sharer`. |
+| Method `default` atau `static` di interface | Tidak ada. |
+| Hierarki exception | Delapan exception kustom, semuanya checked dan langsung di bawah `Exception`. Tidak ada exception unchecked kustom dan tidak ada induk bersama. |
+| Thread pool | Hanya executor satu thread (`newSingleThreadScheduledExecutor`, `newSingleThreadExecutor`) dan `CompletableFuture`. Tidak ada `newFixedThreadPool`, `parallelStream`, `wait`, atau `notify`. |
+| Java IO klasik | Hampir semuanya `java.nio.file`. Tidak ada `InputStream`/`OutputStream` langsung atau serialisasi objek; `Reader` dan `Writer` hanya di `ui/Theme.java`. |
+| FXML | Tidak dipakai; seluruh UI dibuat lewat kode. |
+| Encapsulation | `Category.setArchived(boolean)` adalah setter publik tanpa validasi, dan `UiState` membuka field `public final`. |

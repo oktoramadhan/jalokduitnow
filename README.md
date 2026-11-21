@@ -188,8 +188,8 @@ Java 21, JavaFX 21.0.5, Maven, Jackson (JSON), Ikonli (ikon Material Design), da
 | Topik | Kelas di kode |
 |-------|---------------|
 | Pewarisan dan abstraksi | `Transaction` (abstrak) dengan `Income` dan `Expense`; `Quest` dengan `LogDaysQuest`; `Achievement` dengan `StreakAchievement`; `Reminder` dengan `DailyLogReminder`; `AbstractReportGenerator` dengan `PersonalReportGenerator` dan `DonorReportGenerator`; `FieldType<T>` dengan `TextType` |
-| Polimorfisme | Antarmuka `Sharer` (`WhatsAppSharer`, `ClipboardSharer`), `ReportGenerator`, `Repository<T>`, `UriOpener`, `TrayBackend`, `NotificationSink` |
-| Enkapsulasi | `GameProfile`, `Category`, `Recipient`, `SavingsGoal`: field privat dan validasi di dalam kelas |
+| Polimorfisme | `Transaction.signedAmount()` (`Income`, `Expense`), `Achievement.check(...)`, `Reminder.shouldFire(...)`, antarmuka `ReportGenerator` (`PersonalReportGenerator`, `DonorReportGenerator`), overloading pada constructor `Expense` dan `XpPolicy` |
+| Enkapsulasi | `GameProfile`, `Category`, `ColumnDefinition`: field privat dan validasi di dalam kelas; `SavingsGoal`: validasi di constructor record |
 | Generik | `Repository<T>`, `JsonRepository<T>`, `AutoSaveService<T>`, `FieldType<T>` |
 | Koleksi | `EnumMap` (halaman di `MainApp`), `LinkedHashMap` (`ReminderLog`, `TransactionDialog`), `List` dan `Map` di seluruh service |
 | Exception dan assertion | `StorageException`, `InvalidTransactionException`, `InvalidCategoryException`, `ShareException`; `assert` di `Reminder` dan `StreakAchievement`; assertion diaktifkan di surefire dan `javafx:run` (`-ea`) |

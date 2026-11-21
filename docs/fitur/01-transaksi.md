@@ -129,11 +129,9 @@ dan tidak pernah ditulis.
 
 ## Catatan dan celah
 
-- **`createdAt` tampaknya hilang saat transaksi diubah (dari pembacaan kode, belum dijalankan).** `TransactionDialog.build`
-  membuat objek `Income` atau `Expense` baru tanpa menyalin `createdAt`, dan `FinanceService.update` hanya mengganti objeknya.
-  Akibatnya `createdAt` objek itu null sampai berkas dimuat lagi, saat nilainya diisi pukul 12:00 pada tanggal transaksi.
-  `createdAt` dipakai untuk streak dan pengingat (`ReminderContext.hasEntryOn`), jadi dampaknya terutama pada data riwayat,
-  bukan pada XP.
+- **`createdAt` dipertahankan saat transaksi diubah.** `TransactionDialog.build` membuat objek baru tanpa `createdAt`, lalu
+  `FinanceService.update` menyalin `createdAt` dari transaksi lama bila objek pengganti belum punya
+  (tes: `FinanceServiceTest.editingKeepsTheOriginalCreationTime`). Sebelum perbaikan ini nilainya hilang pada transaksi yang diubah.
 - **Filter periode hanya ada di Beranda.** README menyebut "filter per periode", tetapi halaman **Transaksi** (`TransactionView`)
   menampilkan semua bulan dan hanya difilter oleh kotak pencarian. Beranda menampilkan maksimal 8 transaksi terbaru di bulan terpilih
   (`DashboardView.RECENT_LIMIT`).

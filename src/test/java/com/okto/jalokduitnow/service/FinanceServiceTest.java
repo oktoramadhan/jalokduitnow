@@ -102,6 +102,22 @@ class FinanceServiceTest {
     }
 
     @Test
+    void editingKeepsTheOriginalCreationTime(@TempDir Path dir) throws Exception {
+        var clock = new com.okto.jalokduitnow.TestClock(LocalDate.of(2026, 11, 16));
+        Fixture fx = Fixture.in(dir, clock);
+        Expense t = new Expense(LocalDate.of(2026, 11, 1), fx.expense("Makan"), 1_000L);
+        fx.finance.add(t);
+        java.time.Instant added = t.getCreatedAt();
+
+        clock.set(LocalDate.of(2026, 11, 20));
+        Expense edited = new Expense(t.getId(), t.getDate(), t.getCategoryId(), 2_000L);   // like the edit dialog: no createdAt
+        fx.finance.update(edited);
+
+        assertEquals(added, edited.getCreatedAt());
+        assertEquals(added, fx.finance.getAll().get(0).getCreatedAt());
+    }
+
+    @Test
     void onlyAddAnnouncesATransaction(@TempDir Path dir) throws Exception {
         Fixture fx = Fixture.in(dir);
         var bus = new com.okto.jalokduitnow.event.GameEventBus();

@@ -117,7 +117,16 @@ public class FinanceService {
     /** Replaces the stored transaction that has the same id (allows changing type too). */
     public void update(Transaction replacement) {
         for (int i = 0; i < transactions.size(); i++) {
-            if (transactions.get(i).getId().equals(replacement.getId())) {
+            Transaction old = transactions.get(i);
+            if (old.getId().equals(replacement.getId())) {
+                // an edit builds a new object: keep the time the entry was originally added (drives streaks and reminders)
+                if (replacement.getCreatedAt() == null && old.getCreatedAt() != null) {
+                    try {
+                        replacement.setCreatedAt(old.getCreatedAt());
+                    } catch (com.okto.jalokduitnow.exception.InvalidTransactionException e) {
+                        throw new IllegalStateException(e); // cannot happen: the old value is not null
+                    }
+                }
                 transactions.set(i, replacement);
                 sort();
                 persist();

@@ -159,6 +159,4 @@ saat `MainApp.stop()` lewat `gameService.flush()`.
 - Token pertama diberikan pada `rollTo` pertama (karena `lastTokenWeek` kosong), jadi pengguna baru langsung punya 1 token setelah
   `rollDay()` pertama.
 - Bonus +3 "lengkap" tidak ikut batas harian 30, sehingga entri ke-7 dan seterusnya masih memberi +3 bila lengkap.
-- Lihat [01](01-transaksi.md): `createdAt` tampaknya hilang pada transaksi yang diubah. Itu tidak memengaruhi XP (XP hanya
-  untuk `add`), tetapi memengaruhi `ReminderContext.hasEntryOn` pada data lama.
 - Dengan konfigurasi bawaan, penghasilan XP terbesar per hari dari transaksi adalah 30 (entri) + 10 (pertama) + 3 per entri lengkap.

@@ -146,8 +146,7 @@ Semuanya di-`flush` saat aplikasi ditutup.
 
 ## Catatan dan celah
 
-- `ReminderContext.hasEntryOn` memakai `createdAt`; setelah sebuah transaksi diubah, `createdAt` objeknya tampak kosong (lihat [01](01-transaksi.md)),
-  sehingga entri itu tidak lagi terhitung kecuali `profile.lastActiveDate` kebetulan sama dengan harinya.
+- `ReminderContext.hasEntryOn` memakai `createdAt`; nilai itu kini dipertahankan saat transaksi diubah (lihat [01](01-transaksi.md)).
 - Aplikasi hanya mengingatkan saat berjalan: tidak ada penjadwalan di tingkat sistem operasi. Pengingat yang tertinggal saat aplikasi tertutup hanya
   dikejar untuk hari atau bulan yang sama.
 - Pengingat laporan donor tidak diputar ulang bila aplikasi tertutup pada tanggalnya (disengaja menurut javadoc).

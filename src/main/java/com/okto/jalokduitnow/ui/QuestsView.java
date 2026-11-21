@@ -112,6 +112,8 @@ public class QuestsView extends VBox {
         if (progress.isCompleted()) bar.getStyleClass().add("done");
         Label numbers = new Label(describe(quest, progress));
         numbers.getStyleClass().add("caption");
+        numbers.setWrapText(true);
+        numbers.setMinHeight(Region.USE_PREF_SIZE);
 
         HBox badge;
         if (rewarded || progress.isCompleted()) badge = chip("done", "check", "+" + quest.getRewardXp() + " XP");
@@ -119,12 +121,14 @@ public class QuestsView extends VBox {
         else badge = chip("reward", "bolt", "+" + quest.getRewardXp() + " XP");
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        HBox foot = new HBox(numbers, spacer, badge);
+        badge.setMinWidth(Region.USE_PREF_SIZE);
+        HBox foot = new HBox(8, numbers, spacer, badge);
         foot.setAlignment(Pos.CENTER_LEFT);
 
         VBox card = new VBox(12, title, bar, foot);
         card.getStyleClass().addAll("card", "compact");
         card.setPrefWidth(300);
+        card.setMinWidth(260);
         Motion.lift(card);
         return card;
     }
@@ -209,6 +213,7 @@ public class QuestsView extends VBox {
         Label name = new Label(goal.name());
         name.setStyle("-fx-font-weight: bold; -fx-font-size: 15px;");
         Label percent = new Label(p.percent() + "%");
+        percent.setMinWidth(Region.USE_PREF_SIZE); // never cut the percentage
         percent.getStyleClass().addAll("title-2", p.percent() >= 100 ? "income-text" : "accent-text");
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -222,6 +227,7 @@ public class QuestsView extends VBox {
         if (p.percent() >= 100) bar.getStyleClass().add("done");
         Label amounts = new Label(Rupiah.format(p.saved()) + " / " + Rupiah.format(p.target()));
         amounts.getStyleClass().add("caption");
+        amounts.setMinWidth(Region.USE_PREF_SIZE);
 
         Button edit = new Button("Ubah", IconCatalog.icon("edit", 14));
         edit.getStyleClass().add("ghost");

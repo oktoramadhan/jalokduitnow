@@ -29,6 +29,9 @@ kecuali kamu sendiri menekan tombol berbagi.
 - Zona Berbahaya: hapus semua transaksi, reset progres game, dan reset pabrik, masing-masing dengan konfirmasi dan cadangan pengaman.
 - Tema terang dan gelap.
 
+Dokumentasi tiap fitur beserta cara kerjanya: [docs/fitur/00-index.md](docs/fitur/00-index.md).
+Cara kerja seluruh aplikasi (startup, arsitektur, event, thread, waktu, error): [docs/cara-kerja-aplikasi.md](docs/cara-kerja-aplikasi.md).
+
 ## Unduh dan pasang
 
 Unduh installer dari halaman rilis: `https://github.com/oktoramadhan/jalokduitnow/releases`

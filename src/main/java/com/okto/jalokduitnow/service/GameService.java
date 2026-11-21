@@ -308,6 +308,11 @@ public class GameService {
         listeners.forEach(Runnable::run);
     }
 
+    /** The whole game state in its saved form (used by the backup). */
+    public GameStateDto exportState() {
+        return snapshot();
+    }
+
     private GameStateDto snapshot() {
         return new GameStateDto(ProfileDto.from(profile),
                 quests.stream().map(QuestDto::from).toList(),

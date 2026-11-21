@@ -305,3 +305,8 @@
 .text-area .content { -fx-background-color: -input-bg; -fx-background-radius: 14; -fx-padding: 14; }
 .check-box { -fx-text-fill: -text; }
 .recipient-row .label.name { -fx-font-weight: bold; }
+.radio-button { -fx-text-fill: -text; }
+.radio-button .radio { -fx-background-color: -track; -fx-background-radius: 99; -fx-border-width: 0; -fx-padding: 4; }
+.radio-button:selected .radio { -fx-background-color: -accent; }
+.radio-button .dot { -fx-background-color: transparent; }
+.radio-button:selected .dot { -fx-background-color: white; }

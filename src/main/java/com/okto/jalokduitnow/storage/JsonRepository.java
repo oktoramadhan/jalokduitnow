@@ -2,8 +2,6 @@ package com.okto.jalokduitnow.storage;
 
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.okto.jalokduitnow.exception.StorageException;
 
 import java.io.IOException;
@@ -29,11 +27,7 @@ public class JsonRepository<T> implements Repository<T> {
 
     private final Path file;
     private final JavaType listType;
-    private final ObjectMapper mapper = new ObjectMapper()
-            .registerModule(new JavaTimeModule())
-            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-            .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS) // FieldType subclasses without fields
-            .enable(SerializationFeature.INDENT_OUTPUT);
+    private final ObjectMapper mapper = JsonSupport.newMapper();
 
     public JsonRepository(Path file, Class<T> type) {
         assert file != null && type != null;

@@ -1,6 +1,7 @@
 package com.okto.jalokduitnow.ui;
 
 import com.okto.jalokduitnow.exception.StorageException;
+import com.okto.jalokduitnow.service.BackupService;
 import com.okto.jalokduitnow.service.CategoryService;
 import com.okto.jalokduitnow.event.GameEventBus;
 import com.okto.jalokduitnow.model.XpPolicy;
@@ -113,7 +114,10 @@ public class MainApp extends Application {
         pages.put(Page.REPORT, new ReportView(service, categoryService, schemaService, recipientService, donorSettings,
                 state, bus, clock, whatsApp, ClipboardSharer.system()));
         pages.put(Page.QUESTS, scrolling(new QuestsView(gameService, categoryService)));
-        pages.put(Page.SETTINGS, scrolling(new SettingsView(gameService, recipientService, donorSettings, categoryService)));
+        BackupService backupService = new BackupService(service, schemaService, categoryService, gameService,
+                recipientService, donorSettings, clock);
+        pages.put(Page.SETTINGS, scrolling(new SettingsView(gameService, recipientService, donorSettings,
+                categoryService, backupService, state, clock)));
 
         sidebar = new Sidebar(this::show, actions::add, gameService);
         DetailPanel detail = new DetailPanel(service, categoryService, schemaService, state, actions);

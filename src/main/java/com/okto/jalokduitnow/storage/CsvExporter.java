@@ -18,7 +18,7 @@ import java.util.Set;
  * Turns transactions into CSV text for spreadsheets: Tanggal, Tipe, Kategori, Jumlah, then every custom column.
  * <ul>
  *   <li>RFC 4180 quoting (fields with the delimiter, quotes or line breaks are quoted; quotes are doubled), CRLF lines.</li>
- *   <li>Dates are ISO (2026-11-21) and amounts are plain whole numbers, so any spreadsheet reads them correctly.</li>
+ *   <li>Dates are ISO (yyyy-MM-dd) and amounts are plain whole numbers, so any spreadsheet reads them correctly.</li>
  *   <li>Text that starts with = + - @ (or a tab/CR) gets a leading apostrophe, so a spreadsheet can never run it as a
  *       formula ("CSV injection"). Numbers and dates are not touched.</li>
  *   <li>Every custom column is exported, hidden ones too: an export should not silently leave data out.</li>

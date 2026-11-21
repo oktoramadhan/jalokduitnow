@@ -9,12 +9,14 @@ import com.okto.jalokduitnow.schema.FieldEditor;
 import com.okto.jalokduitnow.schema.FieldType;
 import com.okto.jalokduitnow.schema.TableSchema;
 import com.okto.jalokduitnow.service.CategoryService;
+import com.okto.jalokduitnow.service.DateRules;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
 import javafx.util.StringConverter;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -33,12 +35,12 @@ public final class TransactionDialog {
     private TransactionDialog() {}
 
     /** @param existing transaction to edit, or null to create a new one */
-    public static Optional<Transaction> show(CategoryService categories, TableSchema schema, Transaction existing) {
+    public static Optional<Transaction> show(CategoryService categories, TableSchema schema, Transaction existing, Clock clock) {
         Dialog<ButtonType> dialog = new Dialog<>();
         dialog.setTitle(existing == null ? "Tambah Transaksi" : "Ubah Transaksi");
         dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
 
-        DatePicker date = new DatePicker(existing == null ? LocalDate.now() : existing.getDate());
+        DatePicker date = new DatePicker(existing == null ? LocalDate.now(clock) : existing.getDate());
         ComboBox<String> type = new ComboBox<>(FXCollections.observableArrayList("Expense", "Income"));
         type.setValue(existing == null ? "Expense" : existing.typeLabel());
         ComboBox<Category> category = new ComboBox<>();
@@ -106,6 +108,7 @@ public final class TransactionDialog {
                 }
                 Map<String, Object> merged = schema.applyInput(
                         existing == null ? Map.of() : existing.getCustomValues(), input);
+                DateRules.check(date.getValue(), clock);   // only obvious typos are refused; any other year is fine
                 built[0] = build(existing, date.getValue(), type.getValue(),
                         category.getValue(), amount.getText(), categories, schema, merged);
             } catch (InvalidTransactionException | InvalidColumnException | InvalidCategoryException ex) {

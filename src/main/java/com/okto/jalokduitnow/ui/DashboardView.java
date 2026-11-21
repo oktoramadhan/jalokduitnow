@@ -6,6 +6,7 @@ import com.okto.jalokduitnow.service.CategoryService;
 import com.okto.jalokduitnow.service.FinanceService;
 import com.okto.jalokduitnow.service.FinanceService.MonthSummary;
 import com.okto.jalokduitnow.service.GameService;
+import com.okto.jalokduitnow.service.PeriodRange;
 import com.okto.jalokduitnow.model.MonthlyScore;
 import com.okto.jalokduitnow.service.SchemaService;
 import javafx.collections.FXCollections;
@@ -16,6 +17,7 @@ import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.util.StringConverter;
 
+import java.time.Clock;
 import java.time.Month;
 import java.time.YearMonth;
 import java.time.format.TextStyle;
@@ -35,6 +37,7 @@ public class DashboardView extends VBox {
     private final CategoryService categories;
     private final UiState state;
     private final GameService game;
+    private final Clock clock;
     private final HBox gradeChip = new HBox(6);
     private final HBox streakChip = new HBox(6);
 
@@ -49,11 +52,12 @@ public class DashboardView extends VBox {
     private boolean initialized;   // first refresh jumps to the latest month that has data
 
     public DashboardView(FinanceService finance, CategoryService categories, SchemaService schemaService,
-                         UiState state, TransactionActions actions, GameService game, Runnable onSeeAll) {
+                         UiState state, TransactionActions actions, GameService game, Clock clock, Runnable onSeeAll) {
         this.finance = finance;
         this.categories = categories;
         this.state = state;
         this.game = game;
+        this.clock = clock;
         this.recent = new TransactionTable(categories, schemaService, state, actions, true);
 
         setSpacing(20);
@@ -138,19 +142,18 @@ public class DashboardView extends VBox {
         render();
     }
 
-    private void ensureYear(int year) {
-        var years = new java.util.TreeSet<>(finance.summaryByMonth().keySet().stream().map(YearMonth::getYear).toList());
-        years.add(year);
-        years.add(YearMonth.now().getYear());
-        if (!years.equals(new java.util.TreeSet<>(yearBox.getItems()))) yearBox.setItems(FXCollections.observableArrayList(years));
+    /** Years offered: earliest data year (or this year) to next year, by the clock; always includes the selected one. */
+    private void ensureYear(int selectedYear) {
+        List<Integer> years = PeriodRange.years(finance.summaryByMonth().keySet(), YearMonth.of(selectedYear, 1), clock);
+        if (!years.equals(yearBox.getItems())) yearBox.setItems(FXCollections.observableArrayList(years));
     }
 
-    /** Re-reads the data; on the very first call jumps to the latest month that has transactions. */
+    /** Re-reads the data; the first time it picks the current month, or the latest month with data if that is empty. */
     public void refresh() {
         SortedMap<YearMonth, MonthSummary> all = finance.summaryByMonth();
         if (!initialized) {
             initialized = true;
-            if (!all.isEmpty()) state.period.set(all.lastKey());
+            state.period.set(PeriodRange.defaultMonth(all.keySet(), clock));
         }
         syncPicker();
     }
@@ -220,8 +223,7 @@ public class DashboardView extends VBox {
         inc.setName("Pemasukan");
         XYChart.Series<String, Number> exp = new XYChart.Series<>();
         exp.setName("Pengeluaran");
-        for (int i = 5; i >= 0; i--) {
-            YearMonth m = end.minusMonths(i);
+        for (YearMonth m : PeriodRange.lastMonths(end, 6)) {      // crosses New Year without special cases
             MonthSummary s = finance.summaryFor(m);
             String label = m.getMonth().getDisplayName(TextStyle.SHORT, Formats.ID);
             inc.getData().add(new XYChart.Data<>(label, s.income()));

@@ -7,6 +7,7 @@ import com.okto.jalokduitnow.service.SchemaService;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 
+import java.time.Clock;
 import java.time.YearMonth;
 
 /** The add / edit / delete flows (dialogs), shared by the sidebar button, the tables and the detail panel. */
@@ -15,18 +16,21 @@ public final class TransactionActions {
     private final SchemaService schema;
     private final CategoryService categories;
     private final UiState state;
+    private final Clock clock;
 
-    public TransactionActions(FinanceService finance, SchemaService schema, CategoryService categories, UiState state) {
+    public TransactionActions(FinanceService finance, SchemaService schema, CategoryService categories,
+                              UiState state, Clock clock) {
         this.finance = finance;
         this.schema = schema;
         this.categories = categories;
         this.state = state;
+        this.clock = clock;
         // an edit replaces the Transaction object (same id): keep the selection pointing at the live one
         finance.addListener(this::resync);
     }
 
     public void add() {
-        TransactionDialog.show(categories, schema.getSchema(), null).ifPresent(t -> {
+        TransactionDialog.show(categories, schema.getSchema(), null, clock).ifPresent(t -> {
             finance.add(t);
             state.period.set(YearMonth.from(t.getDate())); // show the month the new entry belongs to
             state.selected.set(t);
@@ -35,7 +39,7 @@ public final class TransactionActions {
 
     public void edit(Transaction transaction) {
         if (transaction == null) return;
-        TransactionDialog.show(categories, schema.getSchema(), transaction).ifPresent(t -> {
+        TransactionDialog.show(categories, schema.getSchema(), transaction, clock).ifPresent(t -> {
             finance.update(t);
             state.selected.set(t);
         });

@@ -32,4 +32,24 @@ class SampleDataGeneratorTest {
         assertEquals(300, again.finance.getAll().size());
         assertEquals(fx.finance.balance(), again.finance.balance());
     }
+
+    @Test
+    void generatedDatesFollowTheClockAcrossAYearBoundary(@TempDir Path dir) throws Exception {
+        var clock = new com.okto.jalokduitnow.TestClock(LocalDate.of(2027, 2, 10));
+        Fixture fx = Fixture.in(dir, clock);
+        List<Transaction> made = SampleDataGenerator.generate(fx.schema, fx.categories, fx.finance, 300, clock, new Random(7));
+
+        LocalDate start = clock.today().minusMonths(3).plusDays(1);
+        assertTrue(made.stream().allMatch(t -> !t.getDate().isBefore(start) && !t.getDate().isAfter(clock.today())));
+        assertTrue(made.stream().anyMatch(t -> t.getDate().getYear() == clock.today().getYear() - 1), "dates before New Year");
+        assertTrue(made.stream().anyMatch(t -> t.getDate().getYear() == clock.today().getYear()), "dates after New Year");
+    }
+
+    @Test
+    void aDifferentClockGivesDifferentYearsSoNothingIsFixed(@TempDir Path dir) throws Exception {
+        var clock = new com.okto.jalokduitnow.TestClock(LocalDate.of(2031, 7, 15));
+        Fixture fx = Fixture.in(dir, clock);
+        List<Transaction> made = SampleDataGenerator.generate(fx.schema, fx.categories, fx.finance, 100, clock, new Random(1));
+        assertTrue(made.stream().allMatch(t -> t.getDate().getYear() == 2031));
+    }
 }

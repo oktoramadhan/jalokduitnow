@@ -100,11 +100,11 @@ public class MainApp extends Application {
             showError(e.getMessage());
         }
 
-        UiState state = new UiState();
-        TransactionActions actions = new TransactionActions(service, schemaService, categoryService, state);
+        UiState state = new UiState(clock);
+        TransactionActions actions = new TransactionActions(service, schemaService, categoryService, state, clock);
 
         pages.put(Page.HOME, scrolling(new DashboardView(service, categoryService, schemaService, state, actions,
-                gameService, () -> show(Page.TRANSACTIONS))));
+                gameService, clock, () -> show(Page.TRANSACTIONS))));
         pages.put(Page.TRANSACTIONS, new TransactionView(service, schemaService, categoryService, state, actions));
         pages.put(Page.CATEGORIES, scrolling(cardAround(CategoryManagerDialog.createView(categoryService))));
         pages.put(Page.COLUMNS, scrolling(ColumnManagerDialog.createView(schemaService)));
@@ -124,7 +124,7 @@ public class MainApp extends Application {
         detailHost = new VBox(detail);
         detailHost.setPadding(new Insets(PAGE_PADDING, PAGE_PADDING, PAGE_PADDING, 0));
 
-        VBox center = new VBox(24, header(state), pageHost);
+        VBox center = new VBox(24, header(state, clock), pageHost);
         center.setPadding(new Insets(PAGE_PADDING));
         VBox.setVgrow(pageHost, Priority.ALWAYS);
 
@@ -175,10 +175,10 @@ public class MainApp extends Application {
 
     // ---- header ----
 
-    private Node header(UiState state) {
-        Label greeting = new Label(greetingText());
+    private Node header(UiState state, Clock clock) {
+        Label greeting = new Label(greetingText(clock));
         greeting.getStyleClass().add("title-1");
-        Label today = new Label(LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, dd MMMM yyyy", Formats.ID)));
+        Label today = new Label(LocalDate.now(clock).format(DateTimeFormatter.ofPattern("EEEE, dd MMMM yyyy", Formats.ID)));
         today.getStyleClass().add("muted");
 
         TextField search = new TextField();
@@ -206,8 +206,8 @@ public class MainApp extends Application {
         return header;
     }
 
-    private static String greetingText() {
-        int hour = LocalTime.now().getHour();
+    private static String greetingText(Clock clock) {
+        int hour = LocalTime.now(clock).getHour();
         if (hour < 11) return "Selamat pagi";
         if (hour < 15) return "Selamat siang";
         if (hour < 18) return "Selamat sore";

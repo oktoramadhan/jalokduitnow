@@ -10,7 +10,7 @@ import java.time.format.DateTimeParseException;
 import java.time.format.ResolverStyle;
 import java.util.Locale;
 
-/** Stored as ISO (2025-08-01); accepts ISO or dd/MM/yyyy as input. */
+/** Stored as ISO (yyyy-MM-dd); accepts ISO or dd/MM/yyyy as input. Any year is valid: there is no minimum or maximum here. */
 public class DateType extends FieldType<LocalDate> {
     // strict: 31/02 is an error, not 28/02
     private static final DateTimeFormatter INPUT =

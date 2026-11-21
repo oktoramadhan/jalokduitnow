@@ -14,6 +14,7 @@ import com.okto.jalokduitnow.storage.JsonRepository;
 import com.okto.jalokduitnow.storage.TransactionDto;
 
 import java.nio.file.Path;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.*;
 
@@ -24,6 +25,13 @@ import java.util.*;
  */
 public final class SampleDataGenerator {
     private SampleDataGenerator() {}
+
+    /** Same as {@link #generate(SchemaService, CategoryService, FinanceService, int, LocalDate, Random)} for the 3 months ending today by the clock. */
+    public static List<Transaction> generate(SchemaService schemaService, CategoryService categories, FinanceService finance,
+                                             int count, Clock clock, Random random)
+            throws InvalidColumnException, InvalidTransactionException {
+        return generate(schemaService, categories, finance, count, LocalDate.now(clock), random);
+    }
 
     /**
      * Adds a "Jenis" (Need/Want) column if missing, then replaces all transactions with fake ones:
@@ -80,7 +88,7 @@ public final class SampleDataGenerator {
             schema.load();
             categories.load();
             finance.load(schema.getSchema(), categories);
-            generate(schema, categories, finance, 300, LocalDate.now(), new Random());
+            generate(schema, categories, finance, 300, Clock.systemDefaultZone(), new Random());
             finance.flush();
             schema.flush();
             categories.flush();

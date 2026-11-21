@@ -18,6 +18,11 @@ public final class TestClock extends Clock {
         now = day.atTime(12, 0).atZone(ZONE).toInstant();
     }
 
+    /** A specific time of day (e.g. just before midnight) in the test zone. */
+    public void set(LocalDate day, java.time.LocalTime time) {
+        now = day.atTime(time).atZone(ZONE).toInstant();
+    }
+
     public LocalDate today() {
         return LocalDate.now(this);
     }

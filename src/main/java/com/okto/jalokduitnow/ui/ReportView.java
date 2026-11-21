@@ -97,8 +97,8 @@ public class ReportView extends HBox {
         Label title = new Label("Atur Laporan");
         title.getStyleClass().add("title-2");
 
-        Button prev = iconButton("left", "Bulan sebelumnya", () -> state.period.set(state.period.get().minusMonths(1)));
-        Button next = iconButton("right", "Bulan berikutnya", () -> state.period.set(state.period.get().plusMonths(1)));
+        Button prev = iconButton("left", "Bulan sebelumnya", () -> state.period.set(PeriodRange.shift(state.period.get(), -1)));
+        Button next = iconButton("right", "Bulan berikutnya", () -> state.period.set(PeriodRange.shift(state.period.get(), 1)));
         periodLabel.setStyle("-fx-font-weight: bold;");
         periodLabel.setMaxWidth(Double.MAX_VALUE);
         periodLabel.setAlignment(Pos.CENTER);

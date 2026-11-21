@@ -39,4 +39,11 @@ class XpPolicyTest {
         assertEquals(5, p.questXp());
         assertEquals(6, p.badgeXp());
     }
+
+    @Test
+    void theDonorReportBonusHasADefaultAndIsTweakable() {
+        assertEquals(25, policy.donorReportXp());
+        assertEquals(40, new XpPolicy(5, 30, 10, 3, 50, 100, 40).donorReportXp());
+        assertEquals(25, new XpPolicy(1, 2, 3, 4, 5, 6).donorReportXp());   // the 6-argument form keeps the default
+    }
 }

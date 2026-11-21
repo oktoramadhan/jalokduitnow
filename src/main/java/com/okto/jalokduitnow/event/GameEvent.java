@@ -25,4 +25,7 @@ public sealed interface GameEvent {
     record QuestCompleted(Quest quest) implements GameEvent {}
 
     record BadgeUnlocked(Achievement achievement, LocalDate date) implements GameEvent {}
+
+    /** A donor report was handed over (opened in WhatsApp or copied). Only the first one is rewarded. */
+    record DonorReportShared(String channel) implements GameEvent {}
 }

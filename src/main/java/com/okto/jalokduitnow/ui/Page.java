@@ -6,6 +6,7 @@ public enum Page {
     TRANSACTIONS("transactions", "Transaksi"),
     CATEGORIES("categories", "Kategori"),
     COLUMNS("columns", "Kolom"),
+    REPORT("report", "Laporan"),
     QUESTS("trophy", "Quest & Badge"),
     SETTINGS("settings", "Pengaturan");
 

@@ -1,7 +1,10 @@
 package com.okto.jalokduitnow.ui;
 
 import javafx.geometry.Pos;
+import com.okto.jalokduitnow.service.CategoryService;
+import com.okto.jalokduitnow.service.DonorSettings;
 import com.okto.jalokduitnow.service.GameService;
+import com.okto.jalokduitnow.service.RecipientService;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
@@ -14,7 +17,7 @@ import javafx.scene.layout.VBox;
 
 /** Settings page: the light/dark theme switch (saved in settings.properties). */
 public class SettingsView extends VBox {
-    public SettingsView(GameService game) {
+    public SettingsView(GameService game, RecipientService recipients, DonorSettings donorSettings, CategoryService categories) {
         Label title = new Label("Tampilan");
         title.getStyleClass().add("title-2");
 
@@ -60,6 +63,6 @@ public class SettingsView extends VBox {
         gameCard.setMaxWidth(620);
 
         setSpacing(20);
-        getChildren().addAll(card, gameCard);
+        getChildren().addAll(card, new DonorSettingsPanel(recipients, donorSettings, categories), gameCard);
     }
 }

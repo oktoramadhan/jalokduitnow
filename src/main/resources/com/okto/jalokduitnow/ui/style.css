@@ -137,7 +137,8 @@
 .date-picker .text-field { -fx-background-color: transparent; -fx-padding: 8 4 8 10; }
 .check-box .box { -fx-background-color: -track; -fx-background-radius: 6; -fx-padding: 5; }
 .check-box:selected .box { -fx-background-color: -accent; }
-.check-box .mark { -fx-background-color: white; }
+.check-box .mark { -fx-background-color: transparent; }
+.check-box:selected .mark { -fx-background-color: white; }   /* the tick shows only when checked */
 .search-box { -fx-background-color: -surface; -fx-background-radius: 14; -fx-padding: 4 8 4 14; -fx-effect: dropshadow(gaussian, -shadow, 16, 0.0, 0, 4); }
 .search-box .text-field { -fx-background-color: transparent; -fx-border-width: 0; -fx-padding: 8 4 8 4; }
 .search-box .text-field:focused { -fx-border-width: 0; }
@@ -297,3 +298,10 @@
 .streak-number { -fx-font-size: 32px; -fx-font-weight: bold; }
 .button.ghost.danger-text { -fx-text-fill: -expense; }
 .button.ghost.danger-text .ikonli-font-icon { -fx-icon-color: -expense; }
+
+/* ---------- report preview ---------- */
+.text-area { -fx-background-color: transparent; -fx-font-family: "Monospaced"; -fx-font-size: 13px; -fx-text-fill: -text; }
+.text-area .scroll-pane, .text-area .viewport { -fx-background-color: transparent; }
+.text-area .content { -fx-background-color: -input-bg; -fx-background-radius: 14; -fx-padding: 14; }
+.check-box { -fx-text-fill: -text; }
+.recipient-row .label.name { -fx-font-weight: bold; }

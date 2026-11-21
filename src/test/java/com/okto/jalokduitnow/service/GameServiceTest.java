@@ -394,4 +394,54 @@ class GameServiceTest {
         again.load();
         assertEquals(0, again.profile().getStreak());
     }
+
+    // ---- donor report: one-time bonus and the Transparent badge ----
+
+    @Test
+    void theFirstSharedDonorReportPaysTheBonusAndUnlocksTheBadgeOnce() throws Exception {
+        long before = game.profile().getXp();
+        bus.publish(new GameEvent.DonorReportShared("WhatsApp"));
+
+        assertEquals(before + 25 + 100, game.profile().getXp());               // bonus + the badge's own XP
+        List<GameEvent.BadgeUnlocked> badges = eventsOf(GameEvent.BadgeUnlocked.class);
+        assertEquals(1, badges.size());
+        assertEquals("transparent", badges.get(0).achievement().getId());
+        assertEquals("Transparan", badges.get(0).achievement().getName());
+        assertTrue(eventsOf(GameEvent.XpGained.class).stream().anyMatch(e -> e.amount() == 25 && e.reason().contains("donor")));
+
+        bus.publish(new GameEvent.DonorReportShared("Clipboard"));              // later shares give nothing
+        bus.publish(new GameEvent.DonorReportShared("WhatsApp"));
+        assertEquals(before + 125, game.profile().getXp());
+        assertEquals(1, eventsOf(GameEvent.BadgeUnlocked.class).size());
+    }
+
+    @Test
+    void theDonorBonusStaysPaidAfterARestartButResetAllowsItAgain() throws Exception {
+        bus.publish(new GameEvent.DonorReportShared("WhatsApp"));
+        game.flush();
+        fx.flush();
+
+        Fixture fx2 = fx.reload();
+        GameEventBus bus2 = new GameEventBus();
+        GameService again = new GameService(new JsonRepository<>(dir.resolve("game.json"), GameStateDto.class),
+                fx2.finance, fx2.categories, fx2.schema, bus2, new XpPolicy(), clock);
+        again.load();
+        long xp = again.profile().getXp();
+        assertTrue(again.unlockedCount() >= 1);
+        bus2.publish(new GameEvent.DonorReportShared("WhatsApp"));
+        assertEquals(xp, again.profile().getXp(), "still paid once");
+
+        again.reset();
+        assertEquals(0, again.profile().getXp());
+        bus2.publish(new GameEvent.DonorReportShared("WhatsApp"));
+        assertEquals(125, again.profile().getXp(), "a reset game can earn it again");
+    }
+
+    @Test
+    void sharingAPersonalReportIsNotAnEventSoNothingIsAwarded() throws Exception {
+        long before = game.profile().getXp();
+        game.rollDay();                                                           // nothing publishes DonorReportShared
+        assertEquals(before, game.profile().getXp());
+        assertEquals(0, game.achievements().stream().filter(a -> a.getId().equals("transparent")).filter(a -> game.unlockedOn(a).isPresent()).count());
+    }
 }

@@ -107,6 +107,12 @@ public final class IconCatalog {
         app("toggle", MaterialDesignT.TOGGLE_SWITCH);
         app("alert", MaterialDesignA.ALERT);
         app("info", MaterialDesignI.INFORMATION);
+        app("report", MaterialDesignF.FILE_DOCUMENT);
+        app("left", MaterialDesignC.CHEVRON_LEFT);
+        app("right", MaterialDesignC.CHEVRON_RIGHT);
+        app("copy", MaterialDesignC.CONTENT_COPY);
+        app("send", MaterialDesignS.SEND);
+        app("donor", MaterialDesignA.ACCOUNT_HEART);
     }
 
     private IconCatalog() {}

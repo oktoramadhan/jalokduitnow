@@ -170,4 +170,14 @@ class AchievementTest {
         assertTrue(a.check(context(new GameProfile(), List.of(), new TableSchema(),
                 List.of(d1, d2, u1, u2, u3), List.of())));
     }
+
+    // ---- TransparencyAchievement ----
+
+    @Test
+    void transparencyUnlocksOnlyOnceADonorReportWasShared() {
+        Achievement a = new TransparencyAchievement();
+        assertEquals("share", a.getIconKey());
+        assertFalse(a.check(simple(new GameProfile())));
+        assertTrue(a.check(new GameContext(new GameProfile(), List.of(), new TableSchema(), List.of(), List.of(), clock, true)));
+    }
 }

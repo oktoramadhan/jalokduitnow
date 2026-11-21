@@ -52,6 +52,7 @@ public class GameService {
     private final Map<String, LocalDate> unlockedBadges = new LinkedHashMap<>();
     private final List<SavingsGoal> goals = new ArrayList<>();
     private final List<Runnable> listeners = new ArrayList<>();
+    private boolean donorReportShared;   // the one-time donor bonus has been paid
     private boolean loaded;
 
     public GameService(Repository<GameStateDto> repository, FinanceService finance, CategoryService categories,
@@ -67,6 +68,7 @@ public class GameService {
         this.questFactory = new QuestFactory(policy);
 
         bus.subscribe(GameEvent.TransactionAdded.class, this::onTransactionAdded);
+        bus.subscribe(GameEvent.DonorReportShared.class, this::onDonorReportShared);
         // badges about columns and categories change when those change
         schemaService.addListener(this::onStructureChanged);
         categories.addListener(this::onStructureChanged);
@@ -94,6 +96,7 @@ public class GameService {
                 if (s.badges() != null) unlockedBadges.putAll(s.badges());
                 goals.clear();
                 if (s.goals() != null) for (GoalDto g : s.goals()) goals.add(g.toGoal());
+                donorReportShared = Boolean.TRUE.equals(s.donorReportShared());
             } catch (IllegalArgumentException e) {
                 throw new StorageException("File game rusak: " + e.getMessage(), e);
             }
@@ -165,6 +168,15 @@ public class GameService {
         changed();
     }
 
+    /** The first donor report that is shared pays a one-time bonus and unlocks the Transparent badge. */
+    private void onDonorReportShared(GameEvent.DonorReportShared event) {
+        if (donorReportShared) return;
+        donorReportShared = true;
+        award(policy.donorReportXp(), "Laporan donor pertama dibagikan");
+        evaluateBadges();
+        changed();
+    }
+
     /** Complete = every required custom column has a value. */
     private boolean isComplete(Transaction t) {
         for (ColumnDefinition col : schemaService.getSchema().getColumns()) {
@@ -217,7 +229,7 @@ public class GameService {
     /** Unlocks every badge whose rule is true now. @return true if anything was unlocked */
     private boolean evaluateBadges() {
         GameContext context = new GameContext(profile, finance.getAll(), schemaService.getSchema(),
-                categories.getAll(), List.copyOf(goals), clock);
+                categories.getAll(), List.copyOf(goals), clock, donorReportShared);
         LocalDate today = LocalDate.now(clock);
         boolean any = false;
         for (Achievement a : catalog) {
@@ -283,6 +295,7 @@ public class GameService {
         profile.reset();
         rewardedQuests.clear();
         unlockedBadges.clear();
+        donorReportShared = false;
         quests = new ArrayList<>();
         ensureQuestsForThisWeek();
         changed();
@@ -300,6 +313,7 @@ public class GameService {
                 quests.stream().map(QuestDto::from).toList(),
                 List.copyOf(rewardedQuests),
                 new LinkedHashMap<>(unlockedBadges),
-                goals.stream().map(GoalDto::from).toList());
+                goals.stream().map(GoalDto::from).toList(),
+                donorReportShared);
     }
 }

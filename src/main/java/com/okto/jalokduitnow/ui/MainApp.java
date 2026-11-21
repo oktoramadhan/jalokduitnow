@@ -4,7 +4,14 @@ import com.okto.jalokduitnow.exception.StorageException;
 import com.okto.jalokduitnow.service.CategoryService;
 import com.okto.jalokduitnow.event.GameEventBus;
 import com.okto.jalokduitnow.model.XpPolicy;
+import com.okto.jalokduitnow.service.DonorSettings;
 import com.okto.jalokduitnow.service.FinanceService;
+import com.okto.jalokduitnow.service.RecipientService;
+import com.okto.jalokduitnow.share.ClipboardSharer;
+import com.okto.jalokduitnow.share.DesktopUriOpener;
+import com.okto.jalokduitnow.share.WhatsAppSharer;
+import com.okto.jalokduitnow.storage.DonorSettingsDto;
+import com.okto.jalokduitnow.storage.RecipientDto;
 import com.okto.jalokduitnow.service.GameService;
 import com.okto.jalokduitnow.storage.GameStateDto;
 import com.okto.jalokduitnow.thread.DailyScheduler;
@@ -48,6 +55,8 @@ public class MainApp extends Application {
     private SchemaService schemaService;
     private CategoryService categoryService;
     private GameService gameService;
+    private RecipientService recipientService;
+    private DonorSettings donorSettings;
     private DailyScheduler scheduler;
 
     private final Map<Page, Node> pages = new EnumMap<>(Page.class);
@@ -67,6 +76,8 @@ public class MainApp extends Application {
         service.setEventBus(bus);
         schemaService = new SchemaService(new JsonRepository<>(dir.resolve("schema.json"), ColumnDto.class), service);
         categoryService = new CategoryService(new JsonRepository<>(dir.resolve("categories.json"), CategoryDto.class), service);
+        recipientService = new RecipientService(new JsonRepository<>(dir.resolve("recipients.json"), RecipientDto.class));
+        donorSettings = new DonorSettings(new JsonRepository<>(dir.resolve("donor-settings.json"), DonorSettingsDto.class));
         gameService = new GameService(new JsonRepository<>(dir.resolve("game.json"), GameStateDto.class),
                 service, categoryService, schemaService, bus, new XpPolicy(), clock);
         // save failures happen on the auto-save thread: show them on the FX thread
@@ -74,10 +85,14 @@ public class MainApp extends Application {
         schemaService.setErrorHandler(e -> Platform.runLater(() -> showError(e.getMessage())));
         categoryService.setErrorHandler(e -> Platform.runLater(() -> showError(e.getMessage())));
         gameService.setErrorHandler(e -> Platform.runLater(() -> showError(e.getMessage())));
+        recipientService.setErrorHandler(e -> Platform.runLater(() -> showError(e.getMessage())));
+        donorSettings.setErrorHandler(e -> Platform.runLater(() -> showError(e.getMessage())));
         try {
             schemaService.load();                          // schema first: it tells how to read custom values
             categoryService.load();                        // then categories: transactions point at their ids
             service.load(schemaService.getSchema(), categoryService);
+            recipientService.load();
+            donorSettings.load();
             gameService.load();
             gameService.rollDay();                         // catch up on streak, weekly quests and badges
         } catch (StorageException e) {
@@ -92,8 +107,13 @@ public class MainApp extends Application {
         pages.put(Page.TRANSACTIONS, new TransactionView(service, schemaService, categoryService, state, actions));
         pages.put(Page.CATEGORIES, scrolling(cardAround(CategoryManagerDialog.createView(categoryService))));
         pages.put(Page.COLUMNS, scrolling(ColumnManagerDialog.createView(schemaService)));
+        // Desktop.browse opens WhatsApp's link; if the platform cannot, the JavaFX host services are the fallback
+        WhatsAppSharer whatsApp = new WhatsAppSharer(new DesktopUriOpener(
+                uri -> Platform.runLater(() -> getHostServices().showDocument(uri.toString()))));
+        pages.put(Page.REPORT, new ReportView(service, categoryService, schemaService, recipientService, donorSettings,
+                state, bus, clock, whatsApp, ClipboardSharer.system()));
         pages.put(Page.QUESTS, scrolling(new QuestsView(gameService, categoryService)));
-        pages.put(Page.SETTINGS, new SettingsView(gameService));
+        pages.put(Page.SETTINGS, scrolling(new SettingsView(gameService, recipientService, donorSettings, categoryService)));
 
         sidebar = new Sidebar(this::show, actions::add, gameService);
         DetailPanel detail = new DetailPanel(service, categoryService, schemaService, state, actions);
@@ -212,6 +232,8 @@ public class MainApp extends Application {
         if (schemaService != null) schemaService.flush();
         if (scheduler != null) scheduler.stop();
         if (gameService != null) gameService.flush();
+        if (recipientService != null) recipientService.flush();
+        if (donorSettings != null) donorSettings.flush();
         if (categoryService != null) categoryService.flush();
     }
 

@@ -53,6 +53,7 @@ public class GameService {
     private final List<SavingsGoal> goals = new ArrayList<>();
     private final List<Runnable> listeners = new ArrayList<>();
     private boolean donorReportShared;   // the one-time donor bonus has been paid
+    private LocalDate firstReminderDay;  // the day the first reminder appeared (null: none yet)
     private boolean loaded;
 
     public GameService(Repository<GameStateDto> repository, FinanceService finance, CategoryService categories,
@@ -69,6 +70,7 @@ public class GameService {
 
         bus.subscribe(GameEvent.TransactionAdded.class, this::onTransactionAdded);
         bus.subscribe(GameEvent.DonorReportShared.class, this::onDonorReportShared);
+        bus.subscribe(GameEvent.ReminderFired.class, this::onReminderFired);
         // badges about columns and categories change when those change
         schemaService.addListener(this::onStructureChanged);
         categories.addListener(this::onStructureChanged);
@@ -97,6 +99,7 @@ public class GameService {
                 goals.clear();
                 if (s.goals() != null) for (GoalDto g : s.goals()) goals.add(g.toGoal());
                 donorReportShared = Boolean.TRUE.equals(s.donorReportShared());
+                firstReminderDay = s.firstReminderDay();
             } catch (IllegalArgumentException e) {
                 throw new StorageException("File game rusak: " + e.getMessage(), e);
             }
@@ -177,6 +180,14 @@ public class GameService {
         changed();
     }
 
+    /** The first reminder starts the clock for the "Konsisten" badge; later ones change nothing. */
+    private void onReminderFired(GameEvent.ReminderFired event) {
+        if (firstReminderDay != null) return;
+        firstReminderDay = LocalDate.now(clock);
+        evaluateBadges();
+        changed();
+    }
+
     /** Complete = every required custom column has a value. */
     private boolean isComplete(Transaction t) {
         for (ColumnDefinition col : schemaService.getSchema().getColumns()) {
@@ -229,14 +240,14 @@ public class GameService {
     /** Unlocks every badge whose rule is true now. @return true if anything was unlocked */
     private boolean evaluateBadges() {
         GameContext context = new GameContext(profile, finance.getAll(), schemaService.getSchema(),
-                categories.getAll(), List.copyOf(goals), clock, donorReportShared);
+                categories.getAll(), List.copyOf(goals), clock, donorReportShared, firstReminderDay);
         LocalDate today = LocalDate.now(clock);
         boolean any = false;
         for (Achievement a : catalog) {
             if (unlockedBadges.containsKey(a.getId())) continue; // unlocked badges stay unlocked
             if (a.check(context)) {
                 unlockedBadges.put(a.getId(), today);
-                award(policy.badgeXp(), "Badge baru");
+                award(policy.badgeXp() + a.bonusXp(), "Badge baru");
                 bus.publish(new GameEvent.BadgeUnlocked(a, today));
                 any = true;
             }
@@ -296,6 +307,7 @@ public class GameService {
         rewardedQuests.clear();
         unlockedBadges.clear();
         donorReportShared = false;
+        firstReminderDay = null;
         quests = new ArrayList<>();
         ensureQuestsForThisWeek();
         changed();
@@ -319,6 +331,6 @@ public class GameService {
                 List.copyOf(rewardedQuests),
                 new LinkedHashMap<>(unlockedBadges),
                 goals.stream().map(GoalDto::from).toList(),
-                donorReportShared);
+                donorReportShared, firstReminderDay);
     }
 }

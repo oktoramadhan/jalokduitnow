@@ -16,6 +16,7 @@ public final class AchievementCatalog {
                 new SavingsAchievement(100, "Target Tercapai", "trophy"),
                 new ColumnBuilderAchievement(1),
                 new CategoryCustomizerAchievement(3),
-                new TransparencyAchievement());
+                new TransparencyAchievement(),
+                new ConsistentAchievement(7));
     }
 }

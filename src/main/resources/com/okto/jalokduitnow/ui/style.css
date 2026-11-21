@@ -310,3 +310,28 @@
 .radio-button:selected .radio { -fx-background-color: -accent; }
 .radio-button .dot { -fx-background-color: transparent; }
 .radio-button:selected .dot { -fx-background-color: white; }
+
+/* ---------- notifications ---------- */
+.button.icon-button {
+    -fx-background-color: -surface;
+    -fx-background-radius: 14;
+    -fx-padding: 10 14 10 14;
+    -fx-effect: dropshadow(gaussian, -shadow, 16, 0.0, 0, 4);
+}
+.button.icon-button:hover { -fx-background-color: -surface-alt; }
+.badge-count {
+    -fx-background-color: -expense;
+    -fx-background-radius: 99;
+    -fx-text-fill: white;
+    -fx-font-size: 10px;
+    -fx-font-weight: bold;
+    -fx-min-width: 18;
+    -fx-alignment: center;
+    -fx-padding: 1 5 1 5;
+    -fx-translate-x: 4;
+    -fx-translate-y: -4;
+}
+.notification-row { -fx-background-radius: 14; -fx-padding: 10; }
+.notification-row.unread { -fx-background-color: -accent-soft; }
+.notification-row:hover { -fx-background-color: -surface-alt; }
+.unread-dot { -fx-background-color: -accent; -fx-background-radius: 99; -fx-min-width: 8; -fx-min-height: 8; -fx-max-width: 8; -fx-max-height: 8; }

@@ -7,7 +7,17 @@ import com.okto.jalokduitnow.event.GameEventBus;
 import com.okto.jalokduitnow.model.XpPolicy;
 import com.okto.jalokduitnow.service.DonorSettings;
 import com.okto.jalokduitnow.service.FinanceService;
+import com.okto.jalokduitnow.reminder.NotificationAction;
+import com.okto.jalokduitnow.service.NotificationCenter;
 import com.okto.jalokduitnow.service.RecipientService;
+import com.okto.jalokduitnow.service.ReminderContextProvider;
+import com.okto.jalokduitnow.service.ReminderLog;
+import com.okto.jalokduitnow.service.ReminderSettingsService;
+import com.okto.jalokduitnow.storage.NotificationDto;
+import com.okto.jalokduitnow.storage.ReminderLogDto;
+import com.okto.jalokduitnow.storage.ReminderSettingsDto;
+import com.okto.jalokduitnow.thread.ReminderService;
+import com.okto.jalokduitnow.util.SystemClock;
 import com.okto.jalokduitnow.share.ClipboardSharer;
 import com.okto.jalokduitnow.share.DesktopUriOpener;
 import com.okto.jalokduitnow.share.WhatsAppSharer;
@@ -37,6 +47,7 @@ import javafx.stage.Stage;
 
 import java.nio.file.Path;
 import java.time.Clock;
+import java.util.TimeZone;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -58,6 +69,11 @@ public class MainApp extends Application {
     private GameService gameService;
     private RecipientService recipientService;
     private DonorSettings donorSettings;
+    private ReminderSettingsService reminderSettings;
+    private ReminderLog reminderLog;
+    private NotificationCenter notificationCenter;
+    private ReminderService reminderService;
+    private SystemTrayNotifier trayNotifier;
     private DailyScheduler scheduler;
 
     private final Map<Page, Node> pages = new EnumMap<>(Page.class);
@@ -71,7 +87,7 @@ public class MainApp extends Application {
     public void start(Stage stage) {
         Path dir = JsonRepository.defaultDataDir();
         Theme.load(dir);
-        Clock clock = Clock.systemDefaultZone();   // one clock for the whole app (tests inject a fixed one)
+        Clock clock = new SystemClock();           // one clock for the whole app; it re-reads the time zone each time (tests inject a fixed one)
         GameEventBus bus = new GameEventBus();
         service = new FinanceService(new JsonRepository<>(dir.resolve("transactions.json"), TransactionDto.class), clock);
         service.setEventBus(bus);
@@ -79,6 +95,9 @@ public class MainApp extends Application {
         categoryService = new CategoryService(new JsonRepository<>(dir.resolve("categories.json"), CategoryDto.class), service);
         recipientService = new RecipientService(new JsonRepository<>(dir.resolve("recipients.json"), RecipientDto.class));
         donorSettings = new DonorSettings(new JsonRepository<>(dir.resolve("donor-settings.json"), DonorSettingsDto.class));
+        reminderSettings = new ReminderSettingsService(new JsonRepository<>(dir.resolve("reminders.json"), ReminderSettingsDto.class));
+        reminderLog = new ReminderLog(new JsonRepository<>(dir.resolve("reminder-log.json"), ReminderLogDto.class));
+        notificationCenter = new NotificationCenter(new JsonRepository<>(dir.resolve("notifications.json"), NotificationDto.class));
         gameService = new GameService(new JsonRepository<>(dir.resolve("game.json"), GameStateDto.class),
                 service, categoryService, schemaService, bus, new XpPolicy(), clock);
         // save failures happen on the auto-save thread: show them on the FX thread
@@ -88,12 +107,18 @@ public class MainApp extends Application {
         gameService.setErrorHandler(e -> Platform.runLater(() -> showError(e.getMessage())));
         recipientService.setErrorHandler(e -> Platform.runLater(() -> showError(e.getMessage())));
         donorSettings.setErrorHandler(e -> Platform.runLater(() -> showError(e.getMessage())));
+        reminderSettings.setErrorHandler(e -> Platform.runLater(() -> showError(e.getMessage())));
+        reminderLog.setErrorHandler(e -> Platform.runLater(() -> showError(e.getMessage())));
+        notificationCenter.setErrorHandler(e -> Platform.runLater(() -> showError(e.getMessage())));
         try {
             schemaService.load();                          // schema first: it tells how to read custom values
             categoryService.load();                        // then categories: transactions point at their ids
             service.load(schemaService.getSchema(), categoryService);
             recipientService.load();
             donorSettings.load();
+            reminderSettings.load();
+            reminderLog.load();
+            notificationCenter.load();
             gameService.load();
             gameService.rollDay();                         // catch up on streak, weekly quests and badges
         } catch (StorageException e) {
@@ -114,17 +139,23 @@ public class MainApp extends Application {
         pages.put(Page.REPORT, new ReportView(service, categoryService, schemaService, recipientService, donorSettings,
                 state, bus, clock, whatsApp, ClipboardSharer.system()));
         pages.put(Page.QUESTS, scrolling(new QuestsView(gameService, categoryService)));
+        // reminders: the ticker thread only keeps time; each check runs on the FX thread (Platform::runLater)
+        reminderService = new ReminderService(reminderSettings, reminderLog, notificationCenter,
+                new ReminderContextProvider(service, gameService, categoryService, recipientService, donorSettings, clock),
+                bus, clock, Platform::runLater, ReminderService.DEFAULT_INTERVAL,
+                () -> TimeZone.setDefault(null));   // forget the cached zone so a changed system time zone is noticed
+        boolean traySupported = new AwtTrayBackend().isSupported();
         BackupService backupService = new BackupService(service, schemaService, categoryService, gameService,
                 recipientService, donorSettings, clock);
         pages.put(Page.SETTINGS, scrolling(new SettingsView(gameService, recipientService, donorSettings,
-                categoryService, backupService, state, clock)));
+                categoryService, backupService, state, clock, reminderSettings, reminderService, traySupported)));
 
         sidebar = new Sidebar(this::show, actions::add, gameService);
         DetailPanel detail = new DetailPanel(service, categoryService, schemaService, state, actions);
         detailHost = new VBox(detail);
         detailHost.setPadding(new Insets(PAGE_PADDING, PAGE_PADDING, PAGE_PADDING, 0));
 
-        VBox center = new VBox(24, header(state, clock), pageHost);
+        VBox center = new VBox(24, header(state, clock, notificationCenter, a -> handleNotificationAction(a, actions)), pageHost);
         center.setPadding(new Insets(PAGE_PADDING));
         VBox.setVgrow(pageHost, Priority.ALWAYS);
 
@@ -136,6 +167,10 @@ public class MainApp extends Application {
         // toasts float above everything and let clicks through
         ToastHost toasts = new ToastHost();
         GameToasts.install(bus, toasts);
+        reminderService.addSink(n -> Platform.runLater(() -> toasts.show(n.getTitle(), n.getMessage(),
+                NotificationBell.iconFor(n), NotificationBell.colorFor(n))));
+        trayNotifier = new SystemTrayNotifier(new AwtTrayBackend(), () -> reminderSettings.current().isTrayEnabled());
+        reminderService.addSink(trayNotifier);
         StackPane layers = new StackPane(root, toasts);
         StackPane.setAlignment(toasts, Pos.BOTTOM_RIGHT);
         toasts.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
@@ -155,6 +190,7 @@ public class MainApp extends Application {
         // at every midnight: roll the streak and start new weekly quests (the timer thread only hands over to the FX thread)
         scheduler = new DailyScheduler(clock, gameService::rollDay, Platform::runLater);
         scheduler.start();
+        reminderService.start();                 // checks right away, so reminders missed earlier today fire now
     }
 
     // ---- navigation ----
@@ -175,7 +211,8 @@ public class MainApp extends Application {
 
     // ---- header ----
 
-    private Node header(UiState state, Clock clock) {
+    private Node header(UiState state, Clock clock, NotificationCenter notifications,
+                        java.util.function.Consumer<NotificationAction> onAction) {
         Label greeting = new Label(greetingText(clock));
         greeting.getStyleClass().add("title-1");
         Label today = new Label(LocalDate.now(clock).format(DateTimeFormatter.ofPattern("EEEE, dd MMMM yyyy", Formats.ID)));
@@ -201,9 +238,20 @@ public class MainApp extends Application {
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        HBox header = new HBox(16, new VBox(4, greeting, today), spacer, searchBox, themeToggle);
+        HBox header = new HBox(16, new VBox(4, greeting, today), spacer, searchBox,
+                new NotificationBell(notifications, clock, onAction), themeToggle);
         header.setAlignment(Pos.CENTER_LEFT);
         return header;
+    }
+
+    /** What the button on a notification does. */
+    private void handleNotificationAction(NotificationAction action, TransactionActions actions) {
+        switch (action) {
+            case ADD_TRANSACTION -> actions.add();
+            case OPEN_REPORT -> show(Page.REPORT);
+            case OPEN_CATEGORIES -> show(Page.CATEGORIES);
+            case NONE -> { }
+        }
     }
 
     private static String greetingText(Clock clock) {
@@ -235,6 +283,11 @@ public class MainApp extends Application {
         if (service != null) service.flush();
         if (schemaService != null) schemaService.flush();
         if (scheduler != null) scheduler.stop();
+        if (reminderService != null) reminderService.stop();     // the ticker thread ends before the app does
+        if (trayNotifier != null) trayNotifier.close();           // a tray icon would keep the process alive
+        if (reminderSettings != null) reminderSettings.flush();
+        if (reminderLog != null) reminderLog.flush();
+        if (notificationCenter != null) notificationCenter.flush();
         if (gameService != null) gameService.flush();
         if (recipientService != null) recipientService.flush();
         if (donorSettings != null) donorSettings.flush();

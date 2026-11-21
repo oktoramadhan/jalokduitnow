@@ -26,4 +26,9 @@ public abstract class Achievement {
     public String getIconKey() { return iconKey; }
 
     public abstract boolean check(GameContext context);
+
+    /** Extra XP on top of the usual badge XP when this badge unlocks (0 for most badges). */
+    public int bonusXp() {
+        return 0;
+    }
 }

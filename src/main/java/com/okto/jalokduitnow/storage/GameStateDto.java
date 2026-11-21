@@ -15,12 +15,18 @@ import java.util.UUID;
  * Quest PROGRESS is never saved: it is recomputed from the transactions.
  */
 public record GameStateDto(ProfileDto profile, List<QuestDto> quests, List<String> rewardedQuests,
-                           Map<String, LocalDate> badges, List<GoalDto> goals, Boolean donorReportShared) {
+                           Map<String, LocalDate> badges, List<GoalDto> goals, Boolean donorReportShared,
+                           LocalDate firstReminderDay) {
 
-    /** Without the donor flag (it is false). Older files have no such field, so it may also be null when read. */
+    /** Without the newer fields. Older files lack them, so they may also be null when read. */
     public GameStateDto(ProfileDto profile, List<QuestDto> quests, List<String> rewardedQuests,
                         Map<String, LocalDate> badges, List<GoalDto> goals) {
-        this(profile, quests, rewardedQuests, badges, goals, false);
+        this(profile, quests, rewardedQuests, badges, goals, false, null);
+    }
+
+    public GameStateDto(ProfileDto profile, List<QuestDto> quests, List<String> rewardedQuests,
+                        Map<String, LocalDate> badges, List<GoalDto> goals, Boolean donorReportShared) {
+        this(profile, quests, rewardedQuests, badges, goals, donorReportShared, null);
     }
 
     public record ProfileDto(long xp, int streak, int longestStreak, int freezeTokens, LocalDate lastActiveDate,

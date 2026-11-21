@@ -26,7 +26,7 @@ public class QuestsView extends VBox {
     private static final DateTimeFormatter FULL_DAY = DateTimeFormatter.ofPattern("dd MMM yyyy", Formats.ID);
     private static final Map<String, String> BADGE_COLORS = Map.of(
             "flame", "#F97316", "shield", "#3B82F6", "star", "#F59E0B",
-            "trophy", "#EAB308", "columns", "#8B5CF6", "categories", "#EC4899", "share", "#0EA5E9");
+            "trophy", "#EAB308", "columns", "#8B5CF6", "categories", "#EC4899", "share", "#0EA5E9", "check", "#14B8A6");
 
     private final GameService game;
     private final CategoryService categories;

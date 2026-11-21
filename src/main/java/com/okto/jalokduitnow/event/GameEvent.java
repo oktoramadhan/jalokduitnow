@@ -28,4 +28,7 @@ public sealed interface GameEvent {
 
     /** A donor report was handed over (opened in WhatsApp or copied). Only the first one is rewarded. */
     record DonorReportShared(String channel) implements GameEvent {}
+
+    /** A reminder fired (not for the test notification). Used to start tracking "logging after a reminder". */
+    record ReminderFired(String reminderId) implements GameEvent {}
 }

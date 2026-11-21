@@ -6,6 +6,8 @@ import com.okto.jalokduitnow.service.CategoryService;
 import com.okto.jalokduitnow.service.DonorSettings;
 import com.okto.jalokduitnow.service.GameService;
 import com.okto.jalokduitnow.service.RecipientService;
+import com.okto.jalokduitnow.service.ReminderSettingsService;
+import com.okto.jalokduitnow.thread.ReminderService;
 import java.time.Clock;
 
 import javafx.scene.control.Alert;
@@ -21,7 +23,8 @@ import javafx.scene.layout.VBox;
 /** Settings page: the light/dark theme switch (saved in settings.properties). */
 public class SettingsView extends VBox {
     public SettingsView(GameService game, RecipientService recipients, DonorSettings donorSettings,
-                        CategoryService categories, BackupService backup, UiState state, Clock clock) {
+                        CategoryService categories, BackupService backup, UiState state, Clock clock,
+                        ReminderSettingsService reminderSettings, ReminderService reminders, boolean traySupported) {
         Label title = new Label("Tampilan");
         title.getStyleClass().add("title-2");
 
@@ -68,6 +71,7 @@ public class SettingsView extends VBox {
 
         setSpacing(20);
         getChildren().addAll(card, new DonorSettingsPanel(recipients, donorSettings, categories),
+                new RemindersPanel(reminderSettings, reminders, traySupported),
                 new ExportPanel(backup, state, clock), gameCard);
     }
 }

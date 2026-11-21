@@ -31,9 +31,7 @@ Belum ada. Simpan gambar di `docs/screenshots/`.
 
 ## Unduh dan pasang
 
-Unduh installer dari halaman rilis: `https://github.com/USERNAME/jalokduitnow/releases`
-
-> Ganti `USERNAME` dengan nama akun atau organisasi GitHub tempat repositori ini berada.
+Unduh installer dari halaman rilis: `https://github.com/oktoramadhan/jalokduitnow/releases`
 
 | Sistem | File | Dibuat oleh |
 |--------|------|-------------|
@@ -63,7 +61,7 @@ Kebutuhan:
 - Git.
 
 ```bash
-git clone https://github.com/USERNAME/jalokduitnow.git
+git clone https://github.com/oktoramadhan/jalokduitnow.git
 cd jalokduitnow
 mvn javafx:run
 ```

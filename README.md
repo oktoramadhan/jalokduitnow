@@ -181,6 +181,8 @@ Menghapus aplikasi tidak menghapus datamu. Untuk menghapus data:
 
 ## Teknologi dan konsep OOP
 
+Materi lengkap per topik beserta lokasinya di kode: [docs/MATERI-OOP.md](docs/MATERI-OOP.md).
+
 Java 21, JavaFX 21.0.5, Maven, Jackson (JSON), Ikonli (ikon Material Design), dan JUnit 5.
 
 | Topik | Kelas di kode |

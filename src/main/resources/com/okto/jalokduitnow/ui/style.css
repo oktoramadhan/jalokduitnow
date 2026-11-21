@@ -335,3 +335,7 @@
 .notification-row.unread { -fx-background-color: -accent-soft; }
 .notification-row:hover { -fx-background-color: -surface-alt; }
 .unread-dot { -fx-background-color: -accent; -fx-background-radius: 99; -fx-min-width: 8; -fx-min-height: 8; -fx-max-width: 8; -fx-max-height: 8; }
+
+/* ---------- restore ---------- */
+.progress-indicator { -fx-progress-color: -accent; }
+.warning-box { -fx-background-color: -warning-soft; -fx-background-radius: 14; -fx-padding: 14; }

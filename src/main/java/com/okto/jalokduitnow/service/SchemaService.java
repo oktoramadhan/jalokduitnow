@@ -67,6 +67,13 @@ public class SchemaService {
         }
     }
 
+    /** Reads the schema from disk again into the same TableSchema object and tells the listeners. */
+    public void reload() throws StorageException {
+        schema.clear();
+        load();
+        listeners.forEach(Runnable::run);
+    }
+
     public TableSchema getSchema() {
         return schema;
     }

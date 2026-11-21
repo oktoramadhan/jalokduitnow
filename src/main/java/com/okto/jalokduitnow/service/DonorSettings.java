@@ -32,6 +32,11 @@ public class DonorSettings {
         if (!saved.isEmpty() && saved.get(0).donorCategoryIds() != null) donorCategories.addAll(saved.get(0).donorCategoryIds());
     }
 
+    public void reload() throws StorageException {
+        load();
+        listeners.forEach(Runnable::run);
+    }
+
     public Set<UUID> donorCategoryIds() {
         return Set.copyOf(donorCategories);
     }

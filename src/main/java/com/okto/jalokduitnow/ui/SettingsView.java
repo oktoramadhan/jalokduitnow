@@ -24,7 +24,8 @@ import javafx.scene.layout.VBox;
 public class SettingsView extends VBox {
     public SettingsView(GameService game, RecipientService recipients, DonorSettings donorSettings,
                         CategoryService categories, BackupService backup, UiState state, Clock clock,
-                        ReminderSettingsService reminderSettings, ReminderService reminders, boolean traySupported) {
+                        ReminderSettingsService reminderSettings, ReminderService reminders, boolean traySupported,
+                        javafx.scene.Node restoreCard) {
         Label title = new Label("Tampilan");
         title.getStyleClass().add("title-2");
 
@@ -72,6 +73,6 @@ public class SettingsView extends VBox {
         setSpacing(20);
         getChildren().addAll(card, new DonorSettingsPanel(recipients, donorSettings, categories),
                 new RemindersPanel(reminderSettings, reminders, traySupported),
-                new ExportPanel(backup, state, clock), gameCard);
+                new ExportPanel(backup, state, clock), restoreCard, gameCard);
     }
 }

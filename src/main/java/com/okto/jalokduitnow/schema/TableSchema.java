@@ -13,6 +13,11 @@ public class TableSchema {
         return "c" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
     }
 
+    /** Removes every column (used when the schema is reloaded from disk; the object stays the same for its users). */
+    public void clear() {
+        columns.clear();
+    }
+
     public List<ColumnDefinition> getColumns() {
         return Collections.unmodifiableList(columns);
     }

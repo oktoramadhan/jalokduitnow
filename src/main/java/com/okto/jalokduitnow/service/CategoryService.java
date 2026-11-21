@@ -74,6 +74,12 @@ public class CategoryService implements CategoryResolver {
         }
     }
 
+    /** Reads the categories from disk again and tells the listeners. */
+    public void reload() throws StorageException {
+        load();
+        listeners.forEach(Runnable::run);
+    }
+
     private void seedDefaults() throws InvalidCategoryException {
         String[][] expense = {
                 {"Makan", "food", "#f0a030"}, {"Transport", "transport", "#3b82c4"}, {"Belanja", "shopping", "#d0508c"},

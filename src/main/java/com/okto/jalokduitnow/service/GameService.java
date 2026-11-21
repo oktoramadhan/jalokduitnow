@@ -55,6 +55,7 @@ public class GameService {
     private boolean donorReportShared;   // the one-time donor bonus has been paid
     private LocalDate firstReminderDay;  // the day the first reminder appeared (null: none yet)
     private boolean loaded;
+    private boolean rewardsSuspended;     // true while a restore reloads data: nothing may award XP or badges
 
     public GameService(Repository<GameStateDto> repository, FinanceService finance, CategoryService categories,
                        SchemaService schemaService, GameEventBus bus, XpPolicy policy, Clock clock) {
@@ -83,6 +84,28 @@ public class GameService {
     public void setErrorHandler(Consumer<StorageException> handler) { autoSave.setErrorHandler(handler); }
 
     public void flush() { autoSave.flush(); }
+
+    /**
+     * While true, changes to columns or categories do not unlock badges or give XP. A restore switches this on while it
+     * reloads the data, so restored data is taken exactly as it was saved and never "earns" anything.
+     */
+    public void suspendRewards(boolean suspended) {
+        this.rewardsSuspended = suspended;
+    }
+
+    /** Forgets the in-memory game state, reads game.json again and tells the listeners. Awards nothing. */
+    public void reload() throws StorageException {
+        profile = new GameProfile();
+        quests = new ArrayList<>();
+        rewardedQuests.clear();
+        unlockedBadges.clear();
+        goals.clear();
+        donorReportShared = false;
+        firstReminderDay = null;
+        loaded = false;
+        load();
+        listeners.forEach(Runnable::run);
+    }
 
     public void load() throws StorageException {
         List<GameStateDto> saved = repository.findAll();
@@ -197,7 +220,7 @@ public class GameService {
     }
 
     private void onStructureChanged() {
-        if (!loaded) return;
+        if (!loaded || rewardsSuspended) return;
         if (evaluateBadges()) changed();
     }
 

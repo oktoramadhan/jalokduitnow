@@ -81,4 +81,64 @@ class AutoSaveServiceTest {
         assertEquals("boom", seen.get());
         auto.shutdown();
     }
+
+    // ---- the global gate a restore uses ----
+
+    @Test
+    void exclusivelyThrowsAwayWaitingSavesSoNoOldSnapshotIsWritten() throws Exception {
+        FakeRepo repo = new FakeRepo();
+        AutoSaveService<String> auto = new AutoSaveService<>(repo, 10_000);
+        auto.save(List.of("old snapshot"));
+        AutoSaveService.exclusively(() -> null);
+        auto.flush();
+        assertTrue(repo.saves.isEmpty(), "the waiting snapshot was discarded");
+
+        auto.save(List.of("new snapshot"));                              // saves after the gate work normally
+        auto.flush();
+        assertEquals(List.of(List.of("new snapshot")), repo.saves);
+        auto.shutdown();
+    }
+
+    @Test
+    void noSaveCanWriteWhileTheGateIsHeld() throws Exception {
+        FakeRepo repo = new FakeRepo();
+        AutoSaveService<String> auto = new AutoSaveService<>(repo, 5);
+        CountDownLatch inside = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        Thread holder = new Thread(() -> {
+            try {
+                AutoSaveService.exclusively(() -> {
+                    inside.countDown();
+                    release.await(5, TimeUnit.SECONDS);
+                    return null;
+                });
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        });
+        holder.start();
+        assertTrue(inside.await(2, TimeUnit.SECONDS));
+
+        auto.save(List.of("during the swap"));                           // scheduled for 5 ms, but the gate is closed
+        Thread.sleep(150);
+        assertTrue(repo.saves.isEmpty(), "nothing was written while the gate was held");
+
+        release.countDown();
+        holder.join(2000);
+        // the snapshot saved during the gate is a legitimate new save (made after the swap started): it is written once the gate opens
+        assertTrue(repo.first.await(2, TimeUnit.SECONDS));
+        assertEquals(List.of(List.of("during the swap")), repo.saves);
+        auto.shutdown();
+    }
+
+    @Test
+    void theGateIsReleasedEvenIfTheActionFails() {
+        assertThrows(IllegalStateException.class, () -> AutoSaveService.exclusively(() -> { throw new IllegalStateException("x"); }));
+        FakeRepo repo = new FakeRepo();
+        AutoSaveService<String> auto = new AutoSaveService<>(repo, 10_000);
+        auto.save(List.of("a"));
+        auto.flush();
+        assertEquals(1, repo.saves.size(), "a failed action did not leave the gate locked");
+        auto.shutdown();
+    }
 }

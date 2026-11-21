@@ -7,6 +7,12 @@ import com.okto.jalokduitnow.event.GameEventBus;
 import com.okto.jalokduitnow.model.XpPolicy;
 import com.okto.jalokduitnow.service.DonorSettings;
 import com.okto.jalokduitnow.service.FinanceService;
+import com.okto.jalokduitnow.reminder.AppNotification;
+import com.okto.jalokduitnow.service.AutoBackupService;
+import com.okto.jalokduitnow.service.DataReloader;
+import com.okto.jalokduitnow.service.PeriodRange;
+import com.okto.jalokduitnow.service.RestoreService;
+import com.okto.jalokduitnow.storage.FileSwapper;
 import com.okto.jalokduitnow.reminder.NotificationAction;
 import com.okto.jalokduitnow.service.NotificationCenter;
 import com.okto.jalokduitnow.service.RecipientService;
@@ -47,6 +53,7 @@ import javafx.stage.Stage;
 
 import java.nio.file.Path;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.TimeZone;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -74,6 +81,9 @@ public class MainApp extends Application {
     private NotificationCenter notificationCenter;
     private ReminderService reminderService;
     private SystemTrayNotifier trayNotifier;
+    private AutoBackupService autoBackups;
+    private BackupService backupService;
+    private ToastHost toastHost;
     private DailyScheduler scheduler;
 
     private final Map<Page, Node> pages = new EnumMap<>(Page.class);
@@ -98,6 +108,7 @@ public class MainApp extends Application {
         reminderSettings = new ReminderSettingsService(new JsonRepository<>(dir.resolve("reminders.json"), ReminderSettingsDto.class));
         reminderLog = new ReminderLog(new JsonRepository<>(dir.resolve("reminder-log.json"), ReminderLogDto.class));
         notificationCenter = new NotificationCenter(new JsonRepository<>(dir.resolve("notifications.json"), NotificationDto.class));
+        autoBackups = new AutoBackupService(dir.resolve("backups"), clock);
         gameService = new GameService(new JsonRepository<>(dir.resolve("game.json"), GameStateDto.class),
                 service, categoryService, schemaService, bus, new XpPolicy(), clock);
         // save failures happen on the auto-save thread: show them on the FX thread
@@ -145,10 +156,30 @@ public class MainApp extends Application {
                 bus, clock, Platform::runLater, ReminderService.DEFAULT_INTERVAL,
                 () -> TimeZone.setDefault(null));   // forget the cached zone so a changed system time zone is noticed
         boolean traySupported = new AwtTrayBackend().isSupported();
-        BackupService backupService = new BackupService(service, schemaService, categoryService, gameService,
-                recipientService, donorSettings, clock);
+        backupService = new BackupService(service, schemaService, categoryService, gameService,
+                recipientService, donorSettings, reminderSettings, clock);   // reminder settings are part of a backup too
+        // restore: validate, make a safety backup, swap the files atomically, then reload every service on the FX thread
+        DataReloader dataReloader = new DataReloader(service, schemaService, categoryService, gameService, recipientService,
+                donorSettings, reminderSettings);
+        RestoreService restoreService = new RestoreService(dir, autoBackups, new FileSwapper(), Platform::runLater, () -> {
+            dataReloader.reloadAll();
+            state.selected.set(null);                                      // objects from before the restore no longer exist
+            state.period.set(PeriodRange.defaultMonth(service.summaryByMonth().keySet(), clock));
+        });
+        Runnable flushAll = () -> {
+            service.flush();
+            schemaService.flush();
+            categoryService.flush();
+            gameService.flush();
+            recipientService.flush();
+            donorSettings.flush();
+            reminderSettings.flush();
+        };
+        javafx.scene.Node restoreCard = new RestorePanel(restoreService, backupService, autoBackups, flushAll, clock,
+                result -> announceRestore(result, clock));
         pages.put(Page.SETTINGS, scrolling(new SettingsView(gameService, recipientService, donorSettings,
-                categoryService, backupService, state, clock, reminderSettings, reminderService, traySupported)));
+                categoryService, backupService, state, clock, reminderSettings, reminderService, traySupported,
+                restoreCard)));
 
         sidebar = new Sidebar(this::show, actions::add, gameService);
         DetailPanel detail = new DetailPanel(service, categoryService, schemaService, state, actions);
@@ -166,6 +197,7 @@ public class MainApp extends Application {
 
         // toasts float above everything and let clicks through
         ToastHost toasts = new ToastHost();
+        toastHost = toasts;
         GameToasts.install(bus, toasts);
         reminderService.addSink(n -> Platform.runLater(() -> toasts.show(n.getTitle(), n.getMessage(),
                 NotificationBell.iconFor(n), NotificationBell.colorFor(n))));
@@ -191,6 +223,7 @@ public class MainApp extends Application {
         scheduler = new DailyScheduler(clock, gameService::rollDay, Platform::runLater);
         scheduler.start();
         reminderService.start();                 // checks right away, so reminders missed earlier today fire now
+        makeDailyBackup(clock);
     }
 
     // ---- navigation ----
@@ -242,6 +275,29 @@ public class MainApp extends Application {
                 new NotificationBell(notifications, clock, onAction), themeToggle);
         header.setAlignment(Pos.CENTER_LEFT);
         return header;
+    }
+
+    /** A toast and an entry in the notification center after a successful restore. */
+    private void announceRestore(RestoreService.RestoreResult result, Clock clock) {
+        String message = "Data dipulihkan dari cadangan. Salinan pengaman data sebelumnya: " + result.safetyBackup().getFileName();
+        notificationCenter.add(AppNotification.create("Data dipulihkan", message, Instant.now(clock), NotificationAction.NONE, null));
+        if (toastHost != null) toastHost.show("Data dipulihkan", "Semua tampilan sudah diperbarui", "restore", "#16A34A");
+    }
+
+    /** One automatic backup per day, written in the background from a snapshot taken here on the FX thread. */
+    private void makeDailyBackup(Clock clock) {
+        try {
+            String json = backupService.backupJson(true);
+            java.util.concurrent.CompletableFuture.runAsync(() -> {
+                try {
+                    autoBackups.writeDailyIfMissing(json);
+                } catch (StorageException e) {
+                    System.err.println("Cadangan otomatis gagal: " + e.getMessage());   // never bother the user: it is a convenience
+                }
+            });
+        } catch (StorageException e) {
+            System.err.println("Cadangan otomatis gagal: " + e.getMessage());
+        }
     }
 
     /** What the button on a notification does. */

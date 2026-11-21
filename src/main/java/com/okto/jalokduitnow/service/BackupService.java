@@ -1,5 +1,6 @@
 package com.okto.jalokduitnow.service;
 
+import com.okto.jalokduitnow.AppInfo;
 import com.okto.jalokduitnow.exception.StorageException;
 import com.okto.jalokduitnow.model.Transaction;
 import com.okto.jalokduitnow.storage.*;
@@ -23,16 +24,24 @@ public class BackupService {
     private final GameService game;
     private final RecipientService recipients;
     private final DonorSettings donorSettings;
+    private final ReminderSettingsService reminderSettings;   // may be null: the backup then has no reminder section
     private final Clock clock;
 
     public BackupService(FinanceService finance, SchemaService schemaService, CategoryService categories,
                          GameService game, RecipientService recipients, DonorSettings donorSettings, Clock clock) {
+        this(finance, schemaService, categories, game, recipients, donorSettings, null, clock);
+    }
+
+    public BackupService(FinanceService finance, SchemaService schemaService, CategoryService categories,
+                         GameService game, RecipientService recipients, DonorSettings donorSettings,
+                         ReminderSettingsService reminderSettings, Clock clock) {
         this.finance = finance;
         this.schemaService = schemaService;
         this.categories = categories;
         this.game = game;
         this.recipients = recipients;
         this.donorSettings = donorSettings;
+        this.reminderSettings = reminderSettings;
         this.clock = clock;
     }
 
@@ -55,7 +64,8 @@ public class BackupService {
                 finance.getAll().stream().map(t -> TransactionDto.from(t, schema)).toList(),
                 game.exportState(),
                 includeDonors ? recipients.getAll().stream().map(RecipientDto::from).toList() : List.of(),
-                donorCategories);
+                donorCategories, AppInfo.VERSION, includeDonors,
+                reminderSettings == null ? null : ReminderSettingsDto.from(reminderSettings.current()));
     }
 
     public String backupJson(boolean includeDonors) throws StorageException {
@@ -70,17 +80,8 @@ public class BackupService {
         }
     }
 
-    /** Reads a backup file's text; used to check a backup and as the base of a future restore. */
+    /** Reads a backup file's text and checks its structure (see BackupValidator for the full check a restore uses). */
     public static BackupDto parse(String json) throws StorageException {
-        try {
-            BackupDto backup = JsonSupport.newMapper().readValue(json, BackupDto.class);
-            if (!BackupDto.APP_NAME.equals(backup.app())) throw new StorageException("Bukan file cadangan JalokDuitNow", null);
-            if (backup.formatVersion() > BackupDto.CURRENT_VERSION) {
-                throw new StorageException("Cadangan ini dibuat oleh versi aplikasi yang lebih baru", null);
-            }
-            return backup;
-        } catch (IOException e) {
-            throw new StorageException("File cadangan tidak bisa dibaca", e);
-        }
+        return BackupValidator.parseStructure(json);
     }
 }

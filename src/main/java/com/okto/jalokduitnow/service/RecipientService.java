@@ -42,6 +42,11 @@ public class RecipientService {
         ensureOneDefault();
     }
 
+    public void reload() throws StorageException {
+        load();
+        listeners.forEach(Runnable::run);
+    }
+
     public List<Recipient> getAll() {
         return List.copyOf(recipients);
     }

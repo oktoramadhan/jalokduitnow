@@ -84,6 +84,12 @@ public class FinanceService {
         if (changed) persist();
     }
 
+    /** Reads the transactions from disk again (schema and categories must already be reloaded) and tells the listeners. */
+    public void reload(TableSchema schema, CategoryResolver categories) throws StorageException {
+        load(schema, categories);
+        listeners.forEach(Runnable::run);
+    }
+
     public List<Transaction> getAll() {
         return List.copyOf(transactions);
     }

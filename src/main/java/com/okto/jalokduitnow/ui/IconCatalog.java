@@ -113,6 +113,7 @@ public final class IconCatalog {
         app("copy", MaterialDesignC.CONTENT_COPY);
         app("send", MaterialDesignS.SEND);
         app("donor", MaterialDesignA.ACCOUNT_HEART);
+        app("restore", MaterialDesignR.RESTORE);
     }
 
     private IconCatalog() {}

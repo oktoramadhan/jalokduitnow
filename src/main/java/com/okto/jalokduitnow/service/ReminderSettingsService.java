@@ -45,6 +45,13 @@ public class ReminderSettingsService {
         }
     }
 
+    /** Back to the defaults, then whatever is on disk (a missing file means defaults); tells the listeners. */
+    public void reload() throws StorageException {
+        settings = new ReminderSettings();
+        load();
+        listeners.forEach(Runnable::run);
+    }
+
     /** A snapshot of the settings (changing it does not change the live settings). */
     public ReminderSettings current() {
         return settings.copy();

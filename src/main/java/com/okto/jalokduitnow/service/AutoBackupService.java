@@ -22,14 +22,13 @@ import java.util.stream.Stream;
  * directory. Two kinds live there:
  * <ul>
  *   <li>a daily backup, made once per day when the app starts (the last {@value #KEEP_AUTO} are kept);</li>
- *   <li>a safety backup made right before a restore replaces the data (the last {@value #KEEP_SAFETY} are kept).</li>
+ *   <li>a safety backup made right before a restore or a deletion; these are NEVER rotated away (they are the way back).</li>
  * </ul>
  * Either can be chosen later in the restore dialog. This class only manages files; it never reads app data itself:
  * the caller passes the backup text.
  */
 public class AutoBackupService {
-    public static final int KEEP_AUTO = 14;
-    public static final int KEEP_SAFETY = 10;
+    public static final int KEEP_AUTO = 5;
     static final String AUTO_PREFIX = "otomatis-";
     static final String SAFETY_PREFIX = "sebelum-";           // "sebelum-pemulihan-..." and "sebelum-hapus-..."
     private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
@@ -77,7 +76,6 @@ public class AutoBackupService {
         Path file = folder.resolve(base + ".json");
         for (int n = 2; Files.exists(file); n++) file = folder.resolve(base + "-" + n + ".json");
         write(file, backupJson);
-        prune();
         return file;
     }
 
@@ -119,10 +117,9 @@ public class AutoBackupService {
         }
     }
 
-    /** Keeps the newest KEEP_AUTO daily and KEEP_SAFETY safety backups; deletes older ones. Other files are never touched. */
+    /** Keeps the newest KEEP_AUTO daily backups and deletes older ones. Safety backups and other files are never touched. */
     private void prune() {
         prune(Kind.AUTO, KEEP_AUTO);
-        prune(Kind.SAFETY, KEEP_SAFETY);
     }
 
     private void prune(Kind kind, int keep) {

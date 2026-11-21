@@ -164,7 +164,7 @@ class DeleteDataServiceTest {
         assertEquals(0, p.getLongestStreak());
         assertEquals(0, p.getFreezeTokens());
         assertNull(p.getLastActiveDate());
-        assertEquals(0, w.game.unlockedCount(), "no badges, although the data would earn some again");
+        assertTrue(w.game.unlockedCount() > 0, "badges the existing data already satisfies are synced silently");
         assertTrue(w.game.goals().isEmpty(), "savings goals are part of the game progress");
         assertFalse(w.game.quests().isEmpty(), "this week's quests were started");
         assertTrue(w.events.stream().noneMatch(e -> e instanceof GameEvent.XpGained || e instanceof GameEvent.BadgeUnlocked
@@ -189,7 +189,7 @@ class DeleteDataServiceTest {
         RestoreWorld again = w.reopen();
         assertEquals(0, again.game.profile().getXp());
         assertEquals(0, again.game.profile().getStreak(), "the fresh state was written explicitly, so no history replay");
-        assertEquals(0, again.game.unlockedCount());
+        assertEquals(1, again.game.unlockedCount(), "the silently synced badge was saved");
         assertTrue(again.game.goals().isEmpty());
     }
 
@@ -202,9 +202,8 @@ class DeleteDataServiceTest {
 
         w.events.clear();
         w.fx.finance.add(new Expense(LocalDate.of(2026, 11, 21), w.fx.expense("Makan"), 1_000));
-        assertTrue(w.events.stream().noneMatch(e -> e instanceof GameEvent.XpGained x && "Quest selesai".equals(x.reason())),
-                "no quest XP for old data");
-        assertTrue(w.events.stream().anyMatch(e -> e instanceof GameEvent.XpGained x && x.amount() == 18), "the normal XP for the new entry");
+        assertEquals(5 + 10 + 3, w.game.profile().getXp(), "only the normal XP for the new entry: no quest and no badge XP for old data");
+        assertTrue(w.events.stream().noneMatch(e -> e instanceof GameEvent.BadgeUnlocked || e instanceof GameEvent.LevelUp));
         assertTrue(w.events.stream().noneMatch(e -> e instanceof GameEvent.QuestCompleted));
     }
 
@@ -426,6 +425,8 @@ class DeleteDataServiceTest {
     private void assertEveryFailureStepIsRolledBack(DeleteAction action, boolean alsoBackups) throws Exception {
         boolean succeeded = false;
         for (int failAt = 1; failAt <= 60 && !succeeded; failAt++) {
+            // safety backups are never rotated away, so each earlier attempt left one; clear them so every attempt starts from the same state
+            for (Path old : w.autoBackups.list().stream().filter(f -> f.kind() == Kind.SAFETY).map(f -> f.path()).toList()) Files.delete(old);
             Map<String, String> before = dataFiles();
             Set<UUID> txBefore = w.fx.finance.getAll().stream().map(Transaction::getId).collect(Collectors.toSet());
             int notificationsBefore = w.notifications.getAll().size();
@@ -645,5 +646,54 @@ class DeleteDataServiceTest {
         assertTrue(w.fx.finance.getAll().isEmpty());
         assertEquals(0, w.game.profile().getXp());
         assertEquals(6, w.autoBackups.list().stream().filter(f -> f.kind() == Kind.SAFETY).count(), "each run made its own safety backup");
+    }
+
+    // ---- silent badge sync after a reset ----
+
+    @Test
+    void afterAResetBadgesThatOldDataSatisfiesGiveNoXpAndNoEvent() throws Exception {
+        run(DeleteAction.GAME, false);
+        assertEquals(0, w.game.profile().getXp());
+        assertTrue(w.events.stream().noneMatch(e -> e instanceof GameEvent.BadgeUnlocked), "no announcement while syncing");
+        assertTrue(w.game.unlockedCount() > 0);
+        assertEquals(0, w.notifications.getAll().stream().filter(n -> "Badge baru".equals(n.getTitle())).count());
+    }
+
+    @Test
+    void aBadgeEarnedForTheFirstTimeAfterAResetStillPaysExactlyOnce() throws Exception {
+        run(DeleteAction.GAME, false);
+        int badgesBefore = w.game.unlockedCount();
+        long xp0 = w.game.profile().getXp();
+        w.events.clear();
+
+        w.bus.publish(new GameEvent.DonorReportShared("whatsapp"));              // the Transparent badge was not earned yet
+        long afterFirst = w.game.profile().getXp();
+        assertTrue(afterFirst - xp0 >= new com.okto.jalokduitnow.model.XpPolicy().badgeXp(), "the new badge pays: " + (afterFirst - xp0));
+        assertEquals(badgesBefore + 1, w.game.unlockedCount());
+        assertEquals(1, w.events.stream().filter(e -> e instanceof GameEvent.BadgeUnlocked).count());
+
+        w.bus.publish(new GameEvent.DonorReportShared("whatsapp"));
+        assertEquals(afterFirst, w.game.profile().getXp(), "and never again");
+        assertEquals(badgesBefore + 1, w.game.unlockedCount());
+    }
+
+    @Test
+    void resettingAndAddingAgainAndAgainCannotFarmXp() throws Exception {
+        for (int cycle = 1; cycle <= 4; cycle++) {
+            run(DeleteAction.GAME, false);
+            w.events.clear();
+            w.fx.finance.add(new Expense(LocalDate.of(2026, 11, 21), w.fx.expense("Makan"), 1_000 + cycle));
+            assertEquals(5 + 10 + 3, w.game.profile().getXp(), "cycle " + cycle + ": only the entry itself pays");
+            assertTrue(w.events.stream().noneMatch(e -> e instanceof GameEvent.BadgeUnlocked || e instanceof GameEvent.QuestCompleted),
+                    "cycle " + cycle + ": " + w.events);
+        }
+    }
+
+    @Test
+    void aFactoryResetSyncsSilentlyToo() throws Exception {
+        run(DeleteAction.FACTORY, false);
+        assertEquals(0, w.game.profile().getXp());
+        assertTrue(w.events.stream().noneMatch(e -> e instanceof GameEvent.BadgeUnlocked || e instanceof GameEvent.XpGained));
+        assertFalse(w.game.quests().isEmpty());
     }
 }

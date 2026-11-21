@@ -6,7 +6,7 @@
 
     <groupId>com.okto</groupId>
     <artifactId>jalokduitnow</artifactId>
-    <version>0.1.0</version>
+    <version>1.0.0</version>
     <name>JalokDuitNow</name>
 
     <properties>
@@ -15,6 +15,12 @@
         <javafx.version>21.0.5</javafx.version>
         <junit.version>5.11.3</junit.version>
         <ikonli.version>12.3.1</ikonli.version>
+        <!-- installer (jpackage): see README.md. macOS requires the first number to be 1 or higher, so keep the project version at 1.0.0 or above. -->
+        <installer.name>JalokDuitNow</installer.name>
+        <installer.version>${project.version}</installer.version>
+        <installer.input>${project.build.directory}/installer/input</installer.input>
+        <installer.output>${project.build.directory}/installer/output</installer.output>
+        <installer.modules>java.base,java.desktop,java.logging,java.xml,java.prefs,java.datatransfer,jdk.unsupported</installer.modules>
     </properties>
 
     <dependencies>
@@ -75,4 +81,148 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- Native installers. Each one must be built on its own operating system:
+             mvn -Pinstaller-windows package   (needs the WiX Toolset 3.x)   ->  target/installer/output/*.msi
+             mvn -Pinstaller-mac package       (needs Xcode Command Line Tools) -> target/installer/output/*.dmg
+             They also switch on by themselves with -Dinstaller on the matching OS. -->
+        <profile>
+            <id>installer-windows</id>
+            <activation>
+                <os><family>windows</family></os>
+                <property><name>installer</name></property>
+            </activation>
+            <properties>
+                <installer.type>msi</installer.type>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-jar-plugin</artifactId>
+                        <version>3.4.2</version>
+                        <configuration>
+                            <outputDirectory>${installer.input}</outputDirectory>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-dependency-plugin</artifactId>
+                        <version>3.8.1</version>
+                        <executions>
+                            <execution>
+                                <id>installer-input</id>
+                                <phase>package</phase>
+                                <goals><goal>copy-dependencies</goal></goals>
+                                <configuration>
+                                    <outputDirectory>${installer.input}</outputDirectory>
+                                    <includeScope>runtime</includeScope>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.5.0</version>
+                        <executions>
+                            <execution>
+                                <id>jpackage</id>
+                                <phase>package</phase>
+                                <goals><goal>exec</goal></goals>
+                                <configuration>
+                                    <executable>${java.home}/bin/jpackage</executable>
+                                    <arguments>
+                                        <argument>--type</argument><argument>${installer.type}</argument>
+                                        <argument>--name</argument><argument>${installer.name}</argument>
+                                        <argument>--app-version</argument><argument>${installer.version}</argument>
+                                        <argument>--vendor</argument><argument>JalokDuitNow</argument>
+                                        <argument>--description</argument><argument>Pencatat keuangan pribadi dengan game</argument>
+                                        <argument>--input</argument><argument>${installer.input}</argument>
+                                        <argument>--dest</argument><argument>${installer.output}</argument>
+                                        <argument>--main-jar</argument><argument>${project.build.finalName}.jar</argument>
+                                        <argument>--main-class</argument><argument>com.okto.jalokduitnow.Launcher</argument>
+                                        <argument>--add-modules</argument><argument>${installer.modules}</argument>
+                                        <argument>--icon</argument><argument>${project.basedir}/packaging/icons/app.ico</argument>
+                                        <argument>--win-menu</argument>
+                                        <argument>--win-shortcut</argument>
+                                        <argument>--win-dir-chooser</argument>
+                                        <argument>--win-per-user-install</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>installer-mac</id>
+            <activation>
+                <os><family>mac</family></os>
+                <property><name>installer</name></property>
+            </activation>
+            <properties>
+                <installer.type>dmg</installer.type>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-jar-plugin</artifactId>
+                        <version>3.4.2</version>
+                        <configuration>
+                            <outputDirectory>${installer.input}</outputDirectory>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-dependency-plugin</artifactId>
+                        <version>3.8.1</version>
+                        <executions>
+                            <execution>
+                                <id>installer-input</id>
+                                <phase>package</phase>
+                                <goals><goal>copy-dependencies</goal></goals>
+                                <configuration>
+                                    <outputDirectory>${installer.input}</outputDirectory>
+                                    <includeScope>runtime</includeScope>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.5.0</version>
+                        <executions>
+                            <execution>
+                                <id>jpackage</id>
+                                <phase>package</phase>
+                                <goals><goal>exec</goal></goals>
+                                <configuration>
+                                    <executable>${java.home}/bin/jpackage</executable>
+                                    <arguments>
+                                        <argument>--type</argument><argument>${installer.type}</argument>
+                                        <argument>--name</argument><argument>${installer.name}</argument>
+                                        <argument>--app-version</argument><argument>${installer.version}</argument>
+                                        <argument>--vendor</argument><argument>JalokDuitNow</argument>
+                                        <argument>--description</argument><argument>Pencatat keuangan pribadi dengan game</argument>
+                                        <argument>--input</argument><argument>${installer.input}</argument>
+                                        <argument>--dest</argument><argument>${installer.output}</argument>
+                                        <argument>--main-jar</argument><argument>${project.build.finalName}.jar</argument>
+                                        <argument>--main-class</argument><argument>com.okto.jalokduitnow.Launcher</argument>
+                                        <argument>--add-modules</argument><argument>${installer.modules}</argument>
+                                        <argument>--icon</argument><argument>${project.basedir}/packaging/icons/app.icns</argument>
+                                        <argument>--mac-package-name</argument><argument>${installer.name}</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

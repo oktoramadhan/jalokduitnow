@@ -1,5 +1,6 @@
 package com.okto.jalokduitnow.restore;
 
+import com.okto.jalokduitnow.AppInfo;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -46,7 +47,7 @@ class BackupValidatorTest {
         BackupDto b = BackupValidator.validate(valid);
         assertEquals("JalokDuitNow", b.app());
         assertEquals(6, b.transactions().size());
-        assertEquals("0.1.0", b.appVersion());
+        assertEquals(AppInfo.VERSION, b.appVersion());
         assertTrue(b.hasDonorData());
     }
 

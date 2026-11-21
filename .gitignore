@@ -1,2 +1,9 @@
 sample-data/
 target/
+
+# personal data and backups must never be committed
+.jalokduitnow/
+jalokduitnow-cadangan-*.json
+jalokduitnow-transaksi-*.csv
+otomatis-*.json
+sebelum-*.json

@@ -1,5 +1,6 @@
 package com.okto.jalokduitnow.restore;
 
+import com.okto.jalokduitnow.AppInfo;
 import com.okto.jalokduitnow.event.GameEvent;
 import com.okto.jalokduitnow.exception.StorageException;
 import com.okto.jalokduitnow.model.Transaction;
@@ -138,7 +139,7 @@ class RestoreServiceTest {
         assertEquals(source.game.profile().getXp(), preview.xp());
         assertEquals(1, preview.goals());
         assertEquals(1, preview.recipients());
-        assertEquals("0.1.0", preview.appVersion());
+        assertEquals(AppInfo.VERSION, preview.appVersion());
         assertEquals(1, preview.formatVersion());
         assertEquals(source.clock.instant(), preview.exportedAt());
         assertTrue(preview.hasDonorData());

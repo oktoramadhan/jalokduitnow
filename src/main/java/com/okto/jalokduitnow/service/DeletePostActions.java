@@ -41,7 +41,7 @@ public class DeletePostActions implements DeleteDataService.PostActions {
                 forget("streak-risk");                               // there is no streak left to protect
                 game.startQuestWeek();
             }
-            case FACTORY -> { }                                      // everything was reloaded from empty files
+            case FACTORY -> game.startQuestWeek();                   // everything was reloaded from empty files; sync stays silent
         }
         uiReset.accept(action);
     }

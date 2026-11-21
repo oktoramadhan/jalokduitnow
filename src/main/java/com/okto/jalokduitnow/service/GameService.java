@@ -243,15 +243,26 @@ public class GameService {
     }
 
     /**
-     * After a game reset: generates this week's quests, WITHOUT paying anything. A quest that the existing transactions
-     * already satisfy is marked as rewarded silently, so the next transaction cannot pay it out for old data.
+     * After a game reset: starts this week's quests and syncs the badges, WITHOUT paying or announcing anything.
+     * A quest or badge that the existing data already satisfies is marked as done silently (no XP, no event, no toast), so the next
+     * transaction cannot pay it out for old data. Anything earned afterwards works normally.
      */
     public void startQuestWeek() {
         ensureQuestsForThisWeek();
         for (Quest q : quests) {
             if (q.evaluate(finance.getAll(), clock).isCompleted()) rewardedQuests.add(q.getId());
         }
+        syncBadgesSilently();
         changed();
+    }
+
+    private void syncBadgesSilently() {
+        GameContext context = new GameContext(profile, finance.getAll(), schemaService.getSchema(),
+                categories.getAll(), List.copyOf(goals), clock, donorReportShared, firstReminderDay);
+        LocalDate today = LocalDate.now(clock);
+        for (Achievement a : catalog) {
+            if (!unlockedBadges.containsKey(a.getId()) && a.check(context)) unlockedBadges.put(a.getId(), today);
+        }
     }
 
     private void ensureQuestsForThisWeek() {

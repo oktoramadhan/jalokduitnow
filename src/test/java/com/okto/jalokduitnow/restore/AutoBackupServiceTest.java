@@ -78,7 +78,8 @@ class AutoBackupServiceTest {
     }
 
     @Test
-    void onlyTheNewestDailyBackupsAreKept() throws Exception {
+    void onlyTheLastFiveDailyBackupsAreKept() throws Exception {
+        assertEquals(5, AutoBackupService.KEEP_AUTO);
         LocalDate day = LocalDate.of(2026, 10, 1);
         for (int i = 0; i < AutoBackupService.KEEP_AUTO + 6; i++) {
             clock.set(day.plusDays(i));
@@ -91,18 +92,18 @@ class AutoBackupServiceTest {
     }
 
     @Test
-    void safetyAndDailyBackupsArePrunedSeparatelyAndOtherFilesAreNeverTouched() throws Exception {
+    void safetyBackupsAreNeverRotatedAwayAndOtherFilesAreNeverTouched() throws Exception {
         Files.createDirectories(dir.resolve("backups"));
         Files.writeString(dir.resolve("backups/cadangan-saya.json"), "mine");
         Files.writeString(dir.resolve("backups/catatan.txt"), "note");
-        for (int i = 0; i < AutoBackupService.KEEP_SAFETY + 4; i++) {
+        for (int i = 0; i < 25; i++) {
             clock.set(LocalDate.of(2026, 11, 21), LocalTime.of(10, 0, i));
             service.writeSafety("s" + i);
         }
         clock.set(LocalDate.of(2026, 11, 21));
         service.writeDailyIfMissing("d");
 
-        assertEquals(AutoBackupService.KEEP_SAFETY, service.list().stream().filter(f -> f.kind() == Kind.SAFETY).count());
+        assertEquals(25, service.list().stream().filter(f -> f.kind() == Kind.SAFETY).count(), "none of the safety backups was rotated away");
         assertEquals(1, service.list().stream().filter(f -> f.kind() == Kind.AUTO).count(), "daily backups were not pushed out by safety ones");
         assertEquals("mine", Files.readString(dir.resolve("backups/cadangan-saya.json")));
         assertTrue(Files.exists(dir.resolve("backups/catatan.txt")));
@@ -113,5 +114,45 @@ class AutoBackupServiceTest {
     void aMissingFolderIsAnEmptyList() {
         assertTrue(service.list().isEmpty());
         assertEquals(dir.resolve("backups"), service.folder());
+    }
+
+    @Test
+    void dailyRotationNeverDeletesSafetyBackupsEvenWhenManyDaysPass() throws Exception {
+        Path safety = service.writeSafety("precious", "hapus");
+        for (int i = 0; i < 12; i++) {
+            clock.set(LocalDate.of(2026, 12, 1).plusDays(i));
+            service.writeDailyIfMissing("d" + i);
+        }
+        assertTrue(Files.exists(safety));
+        assertEquals(5, service.list().stream().filter(f -> f.kind() == Kind.AUTO).count());
+    }
+
+    @Test
+    void ifTheFolderCannotBeCreatedTheWriteFailsWithAClearErrorAndNothingIsLost() throws Exception {
+        Files.writeString(dir.resolve("backups"), "a file where the folder must be");
+        assertThrows(com.okto.jalokduitnow.exception.StorageException.class, () -> service.writeDailyIfMissing("x"));
+        assertThrows(com.okto.jalokduitnow.exception.StorageException.class, () -> service.writeSafety("x", "hapus"));
+        assertEquals("a file where the folder must be", Files.readString(dir.resolve("backups")));
+    }
+
+    @Test
+    void anOldBackupThatCannotBeDeletedDoesNotMakeTheNewBackupFail() throws Exception {
+        Path stuck = dir.resolve("backups/otomatis-2026-01-01.json");
+        Files.createDirectories(stuck);                                       // a non-empty folder with a backup's name cannot be deleted as a file
+        Files.writeString(stuck.resolve("inside.txt"), "x");
+        for (int i = 0; i < 7; i++) {
+            clock.set(LocalDate.of(2026, 11, 1).plusDays(i));
+            assertTrue(service.writeDailyIfMissing("d" + i).isPresent());
+        }
+        assertTrue(Files.exists(stuck.resolve("inside.txt")), "left alone, retried at the next prune");
+    }
+
+    @Test
+    void aDailyBackupNeverOverwritesAndLeavesNoTempFiles() throws Exception {
+        Files.createDirectories(dir.resolve("backups/otomatis-2026-11-21.json"));   // the day's name is taken by something else
+        assertTrue(service.writeDailyIfMissing("x").isEmpty(), "an existing entry is never overwritten");
+        try (var s = Files.list(dir.resolve("backups"))) {
+            assertTrue(s.noneMatch(p -> p.getFileName().toString().endsWith(".tmp")), "no temp leftovers");
+        }
     }
 }

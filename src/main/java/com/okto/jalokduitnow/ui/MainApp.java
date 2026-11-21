@@ -1,100 +1,225 @@
 package com.okto.jalokduitnow.ui;
 
 import com.okto.jalokduitnow.exception.StorageException;
+import com.okto.jalokduitnow.service.CategoryService;
+import com.okto.jalokduitnow.event.GameEventBus;
+import com.okto.jalokduitnow.model.XpPolicy;
 import com.okto.jalokduitnow.service.FinanceService;
+import com.okto.jalokduitnow.service.GameService;
+import com.okto.jalokduitnow.storage.GameStateDto;
+import com.okto.jalokduitnow.thread.DailyScheduler;
+import com.okto.jalokduitnow.service.SchemaService;
+import com.okto.jalokduitnow.storage.CategoryDto;
+import com.okto.jalokduitnow.storage.ColumnDto;
 import com.okto.jalokduitnow.storage.JsonRepository;
 import com.okto.jalokduitnow.storage.TransactionDto;
-import com.okto.jalokduitnow.thread.ImportTask;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.Scene;
-import javafx.scene.control.*;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
-import javafx.stage.FileChooser;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextField;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.layout.*;
 import javafx.stage.Stage;
 
-import java.io.File;
+import java.nio.file.Path;
+import java.time.Clock;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.EnumMap;
+import java.util.Map;
 
-/** Entry point. Stage 3: tabs for Dashboard and Transaksi, plus background Excel import. */
+/**
+ * Entry point. Three panes: sidebar (navigation) | center (greeting, search, current page) | detail panel.
+ * The detail panel hides itself when the window is narrow.
+ */
 public class MainApp extends Application {
+    /** Below this scene width the right panel is hidden. */
+    private static final double SHOW_DETAIL_FROM = 1180;
+    private static final double PAGE_PADDING = 28;
+
     private FinanceService service;
-    private final Label status = new Label();
-    private final ProgressBar progress = new ProgressBar(0);
+    private SchemaService schemaService;
+    private CategoryService categoryService;
+    private GameService gameService;
+    private DailyScheduler scheduler;
+
+    private final Map<Page, Node> pages = new EnumMap<>(Page.class);
+    private final StackPane pageHost = new StackPane();
+    private Page current = Page.HOME;
+    private Sidebar sidebar;
+    private VBox detailHost;
+    private Scene scene;
 
     @Override
     public void start(Stage stage) {
-        service = new FinanceService(new JsonRepository<>(
-                JsonRepository.defaultDataDir().resolve("transactions.json"), TransactionDto.class));
+        Path dir = JsonRepository.defaultDataDir();
+        Theme.load(dir);
+        Clock clock = Clock.systemDefaultZone();   // one clock for the whole app (tests inject a fixed one)
+        GameEventBus bus = new GameEventBus();
+        service = new FinanceService(new JsonRepository<>(dir.resolve("transactions.json"), TransactionDto.class), clock);
+        service.setEventBus(bus);
+        schemaService = new SchemaService(new JsonRepository<>(dir.resolve("schema.json"), ColumnDto.class), service);
+        categoryService = new CategoryService(new JsonRepository<>(dir.resolve("categories.json"), CategoryDto.class), service);
+        gameService = new GameService(new JsonRepository<>(dir.resolve("game.json"), GameStateDto.class),
+                service, categoryService, schemaService, bus, new XpPolicy(), clock);
+        // save failures happen on the auto-save thread: show them on the FX thread
+        service.setErrorHandler(e -> Platform.runLater(() -> showError(e.getMessage())));
+        schemaService.setErrorHandler(e -> Platform.runLater(() -> showError(e.getMessage())));
+        categoryService.setErrorHandler(e -> Platform.runLater(() -> showError(e.getMessage())));
+        gameService.setErrorHandler(e -> Platform.runLater(() -> showError(e.getMessage())));
         try {
-            service.load();
+            schemaService.load();                          // schema first: it tells how to read custom values
+            categoryService.load();                        // then categories: transactions point at their ids
+            service.load(schemaService.getSchema(), categoryService);
+            gameService.load();
+            gameService.rollDay();                         // catch up on streak, weekly quests and badges
         } catch (StorageException e) {
             showError(e.getMessage());
         }
 
-        TabPane tabs = new TabPane(
-                new Tab("Dashboard", new DashboardView(service)),
-                new Tab("Transaksi", new TransactionView(service)));
-        tabs.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+        UiState state = new UiState();
+        TransactionActions actions = new TransactionActions(service, schemaService, categoryService, state);
 
-        Button importBtn = new Button("Import Excel...");
-        importBtn.setOnAction(ev -> chooseAndImport(stage, importBtn));
-        progress.setPrefWidth(180);
-        HBox top = new HBox(10, importBtn, progress, status);
-        top.setPadding(new Insets(10));
-        HBox.setHgrow(status, Priority.ALWAYS);
+        pages.put(Page.HOME, scrolling(new DashboardView(service, categoryService, schemaService, state, actions,
+                gameService, () -> show(Page.TRANSACTIONS))));
+        pages.put(Page.TRANSACTIONS, new TransactionView(service, schemaService, categoryService, state, actions));
+        pages.put(Page.CATEGORIES, scrolling(cardAround(CategoryManagerDialog.createView(categoryService))));
+        pages.put(Page.COLUMNS, new PlaceholderView("columns", "Pengelola Kolom",
+                "Tambah, ubah nama, urutkan, dan sembunyikan kolom buatanmu sendiri. Segera hadir."));
+        pages.put(Page.QUESTS, scrolling(new QuestsView(gameService, categoryService)));
+        pages.put(Page.SETTINGS, new SettingsView(gameService));
 
-        BorderPane root = new BorderPane(tabs);
-        root.setTop(top);
+        sidebar = new Sidebar(this::show, actions::add, gameService);
+        DetailPanel detail = new DetailPanel(service, categoryService, schemaService, state, actions);
+        detailHost = new VBox(detail);
+        detailHost.setPadding(new Insets(PAGE_PADDING, PAGE_PADDING, PAGE_PADDING, 0));
 
-        stage.setScene(new Scene(root, 1000, 650));
+        VBox center = new VBox(24, header(state), pageHost);
+        center.setPadding(new Insets(PAGE_PADDING));
+        VBox.setVgrow(pageHost, Priority.ALWAYS);
+
+        BorderPane root = new BorderPane();
+        root.setLeft(sidebar);
+        root.setCenter(center);
+        root.setRight(detailHost);
+
+        // toasts float above everything and let clicks through
+        ToastHost toasts = new ToastHost();
+        GameToasts.install(bus, toasts);
+        StackPane layers = new StackPane(root, toasts);
+        StackPane.setAlignment(toasts, Pos.BOTTOM_RIGHT);
+        toasts.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+
+        scene = new Scene(layers, 1360, 840);
+        Theme.apply(scene);
+        // responsive: hide the right panel on narrow windows
+        scene.widthProperty().addListener((o, a, b) -> updateDetailVisibility());
+
+        stage.setMinWidth(900);
+        stage.setMinHeight(620);
+        stage.setScene(scene);
         stage.setTitle("JalokDuitNow");
+        show(Page.HOME);
         stage.show();
+
+        // at every midnight: roll the streak and start new weekly quests (the timer thread only hands over to the FX thread)
+        scheduler = new DailyScheduler(clock, gameService::rollDay, Platform::runLater);
+        scheduler.start();
     }
 
-    private void chooseAndImport(Stage stage, Button importBtn) {
-        FileChooser chooser = new FileChooser();
-        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Excel", "*.xlsx"));
-        File file = chooser.showOpenDialog(stage);
-        if (file == null) return;
+    // ---- navigation ----
 
-        ImportTask task = new ImportTask(file.toPath());
-        progress.progressProperty().bind(task.progressProperty());
-        status.textProperty().bind(task.messageProperty());
-        importBtn.setDisable(true);
-
-        // Task callbacks already run on the FX thread.
-        task.setOnSucceeded(e -> {
-            finish(importBtn);
-            try {
-                service.replaceAll(task.getValue().transactions());
-                int warn = task.getValue().warnings().size();
-                status.setText("Import selesai: " + task.getValue().transactions().size()
-                        + " transaksi" + (warn > 0 ? ", " + warn + " baris dilewati" : ""));
-            } catch (StorageException ex) {
-                showError(ex.getMessage());
-            }
-        });
-        task.setOnFailed(e -> {
-            finish(importBtn);
-            showError(task.getException().getMessage());
-        });
-
-        Thread t = new Thread(task, "excel-import");
-        t.setDaemon(true);
-        t.start();
+    private void show(Page page) {
+        current = page;
+        pageHost.getChildren().setAll(pages.get(page));
+        sidebar.select(page);
+        updateDetailVisibility();
     }
 
-    private void finish(Button importBtn) {
-        progress.progressProperty().unbind();
-        status.textProperty().unbind();
-        importBtn.setDisable(false);
+    private void updateDetailVisibility() {
+        boolean relevant = current == Page.HOME || current == Page.TRANSACTIONS;
+        boolean visible = relevant && scene.getWidth() >= SHOW_DETAIL_FROM;
+        detailHost.setVisible(visible);
+        detailHost.setManaged(visible);
+    }
+
+    // ---- header ----
+
+    private Node header(UiState state) {
+        Label greeting = new Label(greetingText());
+        greeting.getStyleClass().add("title-1");
+        Label today = new Label(LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, dd MMMM yyyy", Formats.ID)));
+        today.getStyleClass().add("muted");
+
+        TextField search = new TextField();
+        search.setPromptText("Cari transaksi...");
+        search.setPrefWidth(280);
+        search.textProperty().bindBidirectional(state.search);
+        search.textProperty().addListener((o, a, text) -> {
+            if (!text.isBlank() && current != Page.HOME && current != Page.TRANSACTIONS) show(Page.TRANSACTIONS);
+        });
+        HBox searchBox = new HBox(8, IconCatalog.icon("search", 18), search);
+        searchBox.getStyleClass().add("search-box");
+        searchBox.setAlignment(Pos.CENTER_LEFT);
+
+        ToggleButton themeToggle = new ToggleButton();
+        themeToggle.getStyleClass().add("theme-toggle");
+        themeToggle.selectedProperty().bindBidirectional(Theme.darkProperty());
+        themeToggle.graphicProperty().bind(javafx.beans.binding.Bindings.createObjectBinding(
+                () -> IconCatalog.icon(themeToggle.isSelected() ? "sun" : "moon", 18), themeToggle.selectedProperty()));
+        Motion.grow(themeToggle);
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox header = new HBox(16, new VBox(4, greeting, today), spacer, searchBox, themeToggle);
+        header.setAlignment(Pos.CENTER_LEFT);
+        return header;
+    }
+
+    private static String greetingText() {
+        int hour = LocalTime.now().getHour();
+        if (hour < 11) return "Selamat pagi";
+        if (hour < 15) return "Selamat siang";
+        if (hour < 18) return "Selamat sore";
+        return "Selamat malam";
+    }
+
+    // ---- helpers ----
+
+    private static ScrollPane scrolling(Node content) {
+        ScrollPane scroll = new ScrollPane(content);
+        scroll.setFitToWidth(true);
+        scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        return scroll;
+    }
+
+    private static Node cardAround(Node content) {
+        VBox card = new VBox(content);
+        card.getStyleClass().add("card");
+        return card;
+    }
+
+    @Override
+    public void stop() {
+        // write anything still waiting in the auto-save queue
+        if (service != null) service.flush();
+        if (schemaService != null) schemaService.flush();
+        if (scheduler != null) scheduler.stop();
+        if (gameService != null) gameService.flush();
+        if (categoryService != null) categoryService.flush();
     }
 
     private void showError(String msg) {
-        new Alert(Alert.AlertType.ERROR, msg).showAndWait();
+        Alert alert = new Alert(Alert.AlertType.ERROR, msg);
+        Theme.styleDialog(alert.getDialogPane());
+        alert.showAndWait();
     }
 
     public static void main(String[] args) {

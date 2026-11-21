@@ -6,16 +6,16 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 public class Expense extends Transaction {
-    public Expense(LocalDate date, Category category, long amount, String description)
+    public Expense(LocalDate date, UUID categoryId, long amount)
             throws InvalidTransactionException {
-        this(UUID.randomUUID(), date, category, amount, description);
+        this(UUID.randomUUID(), date, categoryId, amount);
     }
 
-    public Expense(UUID id, LocalDate date, Category category, long amount, String description)
+    public Expense(UUID id, LocalDate date, UUID categoryId, long amount)
             throws InvalidTransactionException {
-        super(id, date, category, amount, description);
+        super(id, date, categoryId, amount);
     }
 
     @Override public long signedAmount() { return -getAmount(); }
-    @Override public String typeLabel() { return "Expense"; }
+    @Override public CategoryType categoryType() { return CategoryType.EXPENSE; }
 }

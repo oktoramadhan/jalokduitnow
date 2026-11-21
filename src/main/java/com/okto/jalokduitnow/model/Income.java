@@ -6,16 +6,16 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 public class Income extends Transaction {
-    public Income(LocalDate date, Category category, long amount, String description)
+    public Income(LocalDate date, UUID categoryId, long amount)
             throws InvalidTransactionException {
-        this(UUID.randomUUID(), date, category, amount, description);
+        this(UUID.randomUUID(), date, categoryId, amount);
     }
 
-    public Income(UUID id, LocalDate date, Category category, long amount, String description)
+    public Income(UUID id, LocalDate date, UUID categoryId, long amount)
             throws InvalidTransactionException {
-        super(id, date, category, amount, description);
+        super(id, date, categoryId, amount);
     }
 
     @Override public long signedAmount() { return getAmount(); }
-    @Override public String typeLabel() { return "Income"; }
+    @Override public CategoryType categoryType() { return CategoryType.INCOME; }
 }

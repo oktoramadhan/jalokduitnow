@@ -1,120 +1,305 @@
 package com.okto.jalokduitnow.ui;
 
+import com.okto.jalokduitnow.model.Category;
+import com.okto.jalokduitnow.model.Transaction;
+import com.okto.jalokduitnow.service.CategoryService;
 import com.okto.jalokduitnow.service.FinanceService;
 import com.okto.jalokduitnow.service.FinanceService.MonthSummary;
+import com.okto.jalokduitnow.service.GameService;
+import com.okto.jalokduitnow.model.MonthlyScore;
+import com.okto.jalokduitnow.service.SchemaService;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.chart.*;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.Label;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
 import javafx.util.StringConverter;
 
 import java.time.Month;
 import java.time.YearMonth;
 import java.time.format.TextStyle;
+import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
+import java.util.UUID;
 
-/** Month picker, Income/Expense/Balance cards, expense PieChart and a monthly BarChart. */
+/**
+ * Home page (center pane): month picker, Income/Expense/Balance cards, charts, category cards and the
+ * latest transactions of the chosen month. The chosen month is shared through UiState.period.
+ */
 public class DashboardView extends VBox {
-    private final FinanceService service;
+    private static final int RECENT_LIMIT = 8;
+
+    private final FinanceService finance;
+    private final CategoryService categories;
+    private final UiState state;
+    private final GameService game;
+    private final HBox gradeChip = new HBox(6);
+    private final HBox streakChip = new HBox(6);
+
     private final ComboBox<Month> monthBox = new ComboBox<>(FXCollections.observableArrayList(Month.values()));
     private final ComboBox<Integer> yearBox = new ComboBox<>();
-    private final Label income = card(), expense = card(), balance = card();
+    private final Label income = new Label(), expense = new Label(), balance = new Label();
     private final PieChart pie = new PieChart();
     private final BarChart<String, Number> bar = new BarChart<>(new CategoryAxis(), new NumberAxis());
-    private boolean updating; // suppress combo events while we set them programmatically
+    private final FlowPane categoryGrid = new FlowPane(16, 16);
+    private final TransactionTable recent;
+    private boolean updating;      // ignore combo events while we set them from code
+    private boolean initialized;   // first refresh jumps to the latest month that has data
 
-    public DashboardView(FinanceService service) {
-        this.service = service;
-        setSpacing(12);
-        setPadding(new Insets(15));
+    public DashboardView(FinanceService finance, CategoryService categories, SchemaService schemaService,
+                         UiState state, TransactionActions actions, GameService game, Runnable onSeeAll) {
+        this.finance = finance;
+        this.categories = categories;
+        this.state = state;
+        this.game = game;
+        this.recent = new TransactionTable(categories, schemaService, state, actions, true);
+
+        setSpacing(20);
 
         monthBox.setConverter(new StringConverter<>() {
             @Override public String toString(Month m) { return m == null ? "" : m.getDisplayName(TextStyle.FULL, Formats.ID); }
             @Override public Month fromString(String s) { return null; }
         });
-        monthBox.setOnAction(e -> { if (!updating) render(); });
-        yearBox.setOnAction(e -> { if (!updating) render(); });
-
-        HBox picker = new HBox(8, new Label("Periode:"), monthBox, yearBox);
+        monthBox.getStyleClass().add("on-page");
+        yearBox.getStyleClass().add("on-page");
+        monthBox.setOnAction(e -> pickPeriod());
+        yearBox.setOnAction(e -> pickPeriod());
+        Label periodLabel = new Label("Periode");
+        periodLabel.getStyleClass().add("muted");
+        Region pickerSpacer = new Region();
+        HBox.setHgrow(pickerSpacer, Priority.ALWAYS);
+        gradeChip.setAlignment(Pos.CENTER);
+        streakChip.setAlignment(Pos.CENTER);
+        HBox picker = new HBox(10, periodLabel, monthBox, yearBox, pickerSpacer, gradeChip, streakChip);
         picker.setAlignment(Pos.CENTER_LEFT);
-        HBox cards = new HBox(12, box("Income", income), box("Expense", expense), box("Balance", balance));
 
-        pie.setTitle("Pengeluaran per Kategori");
+        HBox stats = new HBox(16,
+                statCard("income", "#16A34A", "Pemasukan", income, "income-text"),
+                statCard("expense", "#EF4444", "Pengeluaran", expense, "expense-text"),
+                statCard("wallet", "#3B82F6", "Saldo", balance, null));
+
         pie.setLegendVisible(false);
-        bar.setTitle("Income vs Expense per Bulan");
+        pie.setLabelsVisible(false);
+        pie.setAnimated(false);
+        pie.setMinHeight(230);
+        pie.setPrefHeight(230);
         bar.setAnimated(false);
-        HBox charts = new HBox(12, pie, bar);
-        HBox.setHgrow(pie, Priority.ALWAYS);
-        HBox.setHgrow(bar, Priority.ALWAYS);
-        VBox.setVgrow(charts, Priority.ALWAYS);
+        bar.setLegendSide(javafx.geometry.Side.BOTTOM);
+        bar.setMinHeight(230);
+        bar.setPrefHeight(230);
+        VBox pieCard = card("Pengeluaran per Kategori", pie);
+        VBox barCard = card("6 Bulan Terakhir", bar);
+        HBox.setHgrow(pieCard, Priority.ALWAYS);
+        HBox.setHgrow(barCard, Priority.ALWAYS);
+        pieCard.setPrefWidth(300);
+        barCard.setPrefWidth(480);
+        HBox charts = new HBox(16, pieCard, barCard);
 
-        getChildren().addAll(picker, cards, charts);
+        Label gridTitle = new Label("Kategori Bulan Ini");
+        gridTitle.getStyleClass().add("title-2");
 
-        service.addListener(this::refresh);
+        Label recentTitle = new Label("Transaksi Terbaru");
+        recentTitle.getStyleClass().add("title-2");
+        Button seeAll = new Button("Lihat semua");
+        seeAll.getStyleClass().add("ghost");
+        seeAll.setOnAction(e -> onSeeAll.run());
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox recentHeader = new HBox(recentTitle, spacer, seeAll);
+        recentHeader.setAlignment(Pos.CENTER_LEFT);
+
+        getChildren().addAll(picker, stats, charts, gridTitle, categoryGrid, recentHeader, recent);
+
+        finance.addListener(this::refresh);
+        categories.addListener(this::refresh);
+        state.search.addListener((o, a, b) -> render());
+        game.addListener(this::renderGame);
+        state.period.addListener((o, a, b) -> syncPicker());
         refresh();
     }
 
-    /** Reloads year choices from the data, keeps the selected period if still valid. */
-    public void refresh() {
-        SortedMap<YearMonth, MonthSummary> all = service.summaryByMonth();
+    // ---- period handling ----
+
+    private void pickPeriod() {
+        if (updating || monthBox.getValue() == null || yearBox.getValue() == null) return;
+        state.period.set(YearMonth.of(yearBox.getValue(), monthBox.getValue()));
+        render();
+    }
+
+    private void syncPicker() {
         updating = true;
-        Month m = monthBox.getValue();
-        Integer y = yearBox.getValue();
-        var years = all.keySet().stream().map(YearMonth::getYear).distinct().toList();
-        yearBox.setItems(FXCollections.observableArrayList(years.isEmpty() ? java.util.List.of(YearMonth.now().getYear()) : years));
-        if (m == null || y == null || !yearBox.getItems().contains(y)) {
-            YearMonth start = all.isEmpty() ? YearMonth.now() : all.lastKey(); // default: latest month with data
-            m = start.getMonth();
-            y = start.getYear();
-        }
-        monthBox.setValue(m);
-        yearBox.setValue(y);
+        YearMonth ym = state.period.get();
+        ensureYear(ym.getYear());
+        monthBox.setValue(ym.getMonth());
+        yearBox.setValue(ym.getYear());
         updating = false;
         render();
     }
 
+    private void ensureYear(int year) {
+        var years = new java.util.TreeSet<>(finance.summaryByMonth().keySet().stream().map(YearMonth::getYear).toList());
+        years.add(year);
+        years.add(YearMonth.now().getYear());
+        if (!years.equals(new java.util.TreeSet<>(yearBox.getItems()))) yearBox.setItems(FXCollections.observableArrayList(years));
+    }
+
+    /** Re-reads the data; on the very first call jumps to the latest month that has transactions. */
+    public void refresh() {
+        SortedMap<YearMonth, MonthSummary> all = finance.summaryByMonth();
+        if (!initialized) {
+            initialized = true;
+            if (!all.isEmpty()) state.period.set(all.lastKey());
+        }
+        syncPicker();
+    }
+
+    // ---- drawing ----
+
     private void render() {
-        if (monthBox.getValue() == null || yearBox.getValue() == null) return;
-        YearMonth ym = YearMonth.of(yearBox.getValue(), monthBox.getValue());
-        MonthSummary s = service.summaryFor(ym);
+        YearMonth ym = state.period.get();
+        MonthSummary s = finance.summaryFor(ym);
         income.setText(Formats.rupiah(s.income()));
         expense.setText(Formats.rupiah(s.expense()));
         balance.setText(Formats.rupiah(s.balance()));
+        balance.getStyleClass().removeAll("income-text", "expense-text");
+        if (s.balance() != 0) balance.getStyleClass().add(s.balance() > 0 ? "income-text" : "expense-text");
 
+        renderGame();
+        Map<UUID, Long> byCategory = finance.expenseByCategory(ym);
+        renderPie(byCategory);
+        renderBars(ym);
+        renderCategoryCards(byCategory, s.expense());
+
+        List<Transaction> latest = finance.getAll().stream()
+                .filter(t -> YearMonth.from(t.getDate()).equals(ym))
+                .filter(t -> recent.matches(t, state.search.get()))
+                .limit(RECENT_LIMIT).toList();
+        recent.setRows(latest);
+    }
+
+    /** The month's grade and the current streak. */
+    private void renderGame() {
+        MonthlyScore score = game.scoreFor(state.period.get());
+        gradeChip.getChildren().setAll(new Label(score.grade() == MonthlyScore.Grade.NONE
+                ? "Nilai bulan ini: -" : "Nilai bulan ini: " + score.grade()));
+        gradeChip.getStyleClass().removeAll("chip", "grade-a", "grade-b", "grade-c", "grade-d");
+        gradeChip.getStyleClass().add("chip");
+        if (score.grade() != MonthlyScore.Grade.NONE) gradeChip.getStyleClass().add("grade-" + score.grade().name().toLowerCase());
+
+        int streak = game.profile().getStreak();
+        streakChip.getChildren().setAll(IconCatalog.icon("flame", 16), new Label(streak + " hari"));
+        streakChip.getStyleClass().removeAll("chip", "streak");
+        streakChip.getStyleClass().add("chip");
+        if (streak > 0) streakChip.getStyleClass().add("streak");
+    }
+
+    private void renderPie(Map<UUID, Long> byCategory) {
         pie.getData().clear();
-        for (Map.Entry<String, Long> e : service.expenseByCategory(ym).entrySet()) {
-            pie.getData().add(new PieChart.Data(e.getKey() + " (" + Formats.rupiah(e.getValue()) + ")", e.getValue()));
+        for (Map.Entry<UUID, Long> e : byCategory.entrySet()) {
+            Category c = categories.find(e.getKey()).orElse(null);
+            String name = c == null ? "?" : c.displayName();
+            PieChart.Data slice = new PieChart.Data(name, e.getValue());
+            pie.getData().add(slice);
+            // pastel slice color + tooltip once the node exists
+            slice.nodeProperty().addListener((o, a, node) -> style(node, c, name, e.getValue()));
+            if (slice.getNode() != null) style(slice.getNode(), c, name, e.getValue());
         }
+    }
 
+    private static void style(javafx.scene.Node node, Category c, String name, long amount) {
+        if (node == null) return;
+        String color = c == null ? "#9CA3AF" : Tiles.soft(c.getColor(), 0.25);
+        node.setStyle("-fx-pie-color: " + color + ";");
+        Tooltip.install(node, new Tooltip(name + "\n" + Formats.rupiah(amount)));
+    }
+
+    private void renderBars(YearMonth end) {
         XYChart.Series<String, Number> inc = new XYChart.Series<>();
-        inc.setName("Income");
+        inc.setName("Pemasukan");
         XYChart.Series<String, Number> exp = new XYChart.Series<>();
-        exp.setName("Expense");
-        service.summaryByMonth().forEach((month, sum) -> {
-            String label = month.getMonth().getDisplayName(TextStyle.SHORT, Formats.ID) + " " + (month.getYear() % 100);
-            inc.getData().add(new XYChart.Data<>(label, sum.income()));
-            exp.getData().add(new XYChart.Data<>(label, sum.expense()));
-        });
-        bar.getData().setAll(java.util.List.of(inc, exp));
+        exp.setName("Pengeluaran");
+        for (int i = 5; i >= 0; i--) {
+            YearMonth m = end.minusMonths(i);
+            MonthSummary s = finance.summaryFor(m);
+            String label = m.getMonth().getDisplayName(TextStyle.SHORT, Formats.ID);
+            inc.getData().add(new XYChart.Data<>(label, s.income()));
+            exp.getData().add(new XYChart.Data<>(label, s.expense()));
+        }
+        bar.getData().setAll(List.of(inc, exp));
     }
 
-    private static Label card() {
-        Label l = new Label("-");
-        l.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
-        return l;
+    private void renderCategoryCards(Map<UUID, Long> byCategory, long totalExpense) {
+        categoryGrid.getChildren().clear();
+        if (byCategory.isEmpty()) {
+            Label none = new Label("Belum ada pengeluaran di bulan ini");
+            none.getStyleClass().add("muted");
+            categoryGrid.getChildren().add(none);
+            return;
+        }
+        for (Map.Entry<UUID, Long> e : byCategory.entrySet()) {
+            categories.find(e.getKey()).ifPresent(c -> categoryGrid.getChildren().add(categoryCard(c, e.getValue(), totalExpense)));
+        }
     }
 
-    private static VBox box(String title, Label value) {
-        VBox b = new VBox(4, new Label(title), value);
-        b.setPadding(new Insets(10, 16, 10, 16));
-        b.setStyle("-fx-background-color: -fx-box-border, -fx-background; -fx-background-insets: 0, 1; -fx-background-radius: 6;");
-        HBox.setHgrow(b, Priority.ALWAYS);
-        return b;
+    private VBox categoryCard(Category c, long spent, long totalExpense) {
+        Label name = new Label(c.getName());
+        name.setStyle("-fx-font-weight: bold;");
+        Label amount = new Label(Formats.rupiah(spent));
+        amount.getStyleClass().add("title-2");
+
+        VBox text = new VBox(2, name, amount);
+        HBox top = new HBox(12, Tiles.tile(c, 40), text);
+        top.setAlignment(Pos.CENTER_LEFT);
+
+        VBox card = new VBox(12, top);
+        card.getStyleClass().addAll("card", "compact");
+        card.setPrefWidth(236);
+        card.setMinWidth(200);
+
+        ProgressBar progress = new ProgressBar();
+        progress.setMaxWidth(Double.MAX_VALUE);
+        Label caption = new Label();
+        caption.getStyleClass().add("caption");
+        if (c.getMonthlyBudget() != null) {
+            double used = (double) spent / c.getMonthlyBudget();
+            progress.setProgress(Math.min(used, 1.0));
+            if (used > 1.0) progress.getStyleClass().add("over");
+            caption.setText(Math.round(used * 100) + "% dari budget " + Formats.rupiah(c.getMonthlyBudget()));
+        } else {
+            progress.setProgress(totalExpense == 0 ? 0 : (double) spent / totalExpense);
+            caption.setText(Math.round(100.0 * spent / Math.max(1, totalExpense)) + "% dari pengeluaran");
+        }
+        card.getChildren().addAll(progress, caption);
+        Motion.lift(card);
+        return card;
+    }
+
+    private static VBox statCard(String iconKey, String color, String title, Label value, String valueClass) {
+        Label t = new Label(title);
+        t.getStyleClass().add("muted");
+        value.getStyleClass().add("value");
+        if (valueClass != null) value.getStyleClass().add(valueClass);
+        HBox top = new HBox(12, Tiles.tile(iconKey, color, 40), t);
+        top.setAlignment(Pos.CENTER_LEFT);
+        value.setMinWidth(Region.USE_PREF_SIZE); // never truncate an amount
+        VBox card = new VBox(14, top, value);
+        card.getStyleClass().add("card");
+        card.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(card, Priority.ALWAYS);
+        card.setPrefWidth(200);
+        Motion.lift(card);
+        return card;
+    }
+
+    private static VBox card(String title, javafx.scene.Node content) {
+        Label t = new Label(title);
+        t.getStyleClass().add("title-2");
+        VBox card = new VBox(12, t, content);
+        card.getStyleClass().add("card");
+        card.setPadding(new Insets(20));
+        VBox.setVgrow(content, Priority.ALWAYS);
+        return card;
     }
 }

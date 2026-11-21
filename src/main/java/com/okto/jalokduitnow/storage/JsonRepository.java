@@ -1,6 +1,5 @@
 package com.okto.jalokduitnow.storage;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -10,10 +9,18 @@ import com.okto.jalokduitnow.exception.StorageException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Stores a list of T as a JSON file. Writes to a temp file first so a crash can't corrupt data. */
+/**
+ * Stores a list of T as a JSON file.
+ * Safety: writes go to a temp file first, and the previous file is kept as "name.bak".
+ * An unreadable file is copied to "name.corrupt-<time>.bak" before a StorageException is thrown,
+ * so nothing is ever overwritten by an empty default.
+ */
 public class JsonRepository<T> implements Repository<T> {
     /** Default data dir: no hardcoded paths, works on macOS and Windows. */
     public static Path defaultDataDir() {
@@ -25,6 +32,7 @@ public class JsonRepository<T> implements Repository<T> {
     private final ObjectMapper mapper = new ObjectMapper()
             .registerModule(new JavaTimeModule())
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+            .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS) // FieldType subclasses without fields
             .enable(SerializationFeature.INDENT_OUTPUT);
 
     public JsonRepository(Path file, Class<T> type) {
@@ -39,7 +47,7 @@ public class JsonRepository<T> implements Repository<T> {
         try {
             return mapper.readValue(file.toFile(), listType);
         } catch (IOException e) {
-            throw new StorageException("Gagal membaca data: " + file, e);
+            throw new StorageException("File data rusak: " + file.getFileName() + ". " + backupCorrupt(), e);
         }
     }
 
@@ -47,11 +55,27 @@ public class JsonRepository<T> implements Repository<T> {
     public void saveAll(List<T> items) throws StorageException {
         try {
             Files.createDirectories(file.toAbsolutePath().getParent());
-            Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
+            Path tmp = sibling(".tmp");
             mapper.writeValue(tmp.toFile(), items);
-            Files.move(tmp, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            if (Files.exists(file)) Files.copy(file, sibling(".bak"), StandardCopyOption.REPLACE_EXISTING);
+            Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
             throw new StorageException("Gagal menyimpan data: " + file, e);
+        }
+    }
+
+    private Path sibling(String suffix) {
+        return file.resolveSibling(file.getFileName() + suffix);
+    }
+
+    private String backupCorrupt() {
+        String stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+        Path copy = sibling(".corrupt-" + stamp + ".bak");
+        try {
+            Files.copy(file, copy, StandardCopyOption.REPLACE_EXISTING);
+            return "Salinan disimpan di " + copy.getFileName();
+        } catch (IOException e) {
+            return "Salinan cadangan gagal dibuat.";
         }
     }
 }

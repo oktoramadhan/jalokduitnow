@@ -91,8 +91,7 @@ public class MainApp extends Application {
                 gameService, () -> show(Page.TRANSACTIONS))));
         pages.put(Page.TRANSACTIONS, new TransactionView(service, schemaService, categoryService, state, actions));
         pages.put(Page.CATEGORIES, scrolling(cardAround(CategoryManagerDialog.createView(categoryService))));
-        pages.put(Page.COLUMNS, new PlaceholderView("columns", "Pengelola Kolom",
-                "Tambah, ubah nama, urutkan, dan sembunyikan kolom buatanmu sendiri. Segera hadir."));
+        pages.put(Page.COLUMNS, scrolling(ColumnManagerDialog.createView(schemaService)));
         pages.put(Page.QUESTS, scrolling(new QuestsView(gameService, categoryService)));
         pages.put(Page.SETTINGS, new SettingsView(gameService));
 

@@ -6,11 +6,14 @@ import org.kordamp.ikonli.materialdesign2.MaterialDesignA;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignB;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignC;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignD;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignE;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignF;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignG;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignH;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignI;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignL;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignM;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignN;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignP;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignR;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignS;
@@ -94,6 +97,16 @@ public final class IconCatalog {
         app("trend", MaterialDesignT.TRENDING_UP);
         app("builder", MaterialDesignV.VIEW_COLUMN);
         app("palette", MaterialDesignP.PALETTE);
+        app("up", MaterialDesignC.CHEVRON_UP);
+        app("down", MaterialDesignC.CHEVRON_DOWN);
+        app("eye", MaterialDesignE.EYE);
+        app("eye-off", MaterialDesignE.EYE_OFF);
+        app("text", MaterialDesignF.FORMAT_TEXT);
+        app("number", MaterialDesignN.NUMERIC);
+        app("list", MaterialDesignF.FORMAT_LIST_BULLETED);
+        app("toggle", MaterialDesignT.TOGGLE_SWITCH);
+        app("alert", MaterialDesignA.ALERT);
+        app("info", MaterialDesignI.INFORMATION);
     }
 
     private IconCatalog() {}

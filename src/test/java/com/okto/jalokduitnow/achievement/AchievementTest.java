@@ -5,6 +5,7 @@ import com.okto.jalokduitnow.model.*;
 import com.okto.jalokduitnow.schema.ColumnDefinition;
 import com.okto.jalokduitnow.schema.TableSchema;
 import com.okto.jalokduitnow.schema.TextType;
+import com.okto.jalokduitnow.service.SchemaService;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
@@ -127,14 +128,27 @@ class AchievementTest {
     // ---- ColumnBuilderAchievement ----
 
     @Test
-    void columnBuilderNeedsThreeCustomColumns() throws Exception {
-        Achievement a = new ColumnBuilderAchievement(3);
+    void theFirstColumnTheUserBuildsUnlocksTheBadge() throws Exception {
+        Achievement a = new ColumnBuilderAchievement(1);
+        TableSchema schema = new TableSchema();
+        schema.add(new ColumnDefinition(SchemaService.DEFAULT_COLUMN_ID, "Keterangan", new TextType(), false));
+        // the column every schema starts with does not count
+        assertFalse(a.check(context(new GameProfile(), List.of(), schema, List.of(), List.of())));
+
+        schema.add(new ColumnDefinition("kind", "Jenis", new TextType(), false));
+        assertTrue(a.check(context(new GameProfile(), List.of(), schema, List.of(), List.of())));
+        assertEquals("columns", a.getIconKey());
+    }
+
+    @Test
+    void aHigherThresholdNeedsMoreCustomColumns() throws Exception {
+        Achievement three = new ColumnBuilderAchievement(3);
         TableSchema schema = new TableSchema();
         schema.add(new ColumnDefinition("a", "A", new TextType(), false));
         schema.add(new ColumnDefinition("b", "B", new TextType(), false));
-        assertFalse(a.check(context(new GameProfile(), List.of(), schema, List.of(), List.of())));
+        assertFalse(three.check(context(new GameProfile(), List.of(), schema, List.of(), List.of())));
         schema.add(new ColumnDefinition("c", "C", new TextType(), false));
-        assertTrue(a.check(context(new GameProfile(), List.of(), schema, List.of(), List.of())));
+        assertTrue(three.check(context(new GameProfile(), List.of(), schema, List.of(), List.of())));
     }
 
     // ---- CategoryCustomizerAchievement ----

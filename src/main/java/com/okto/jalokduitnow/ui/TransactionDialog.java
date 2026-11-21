@@ -5,6 +5,8 @@ import com.okto.jalokduitnow.exception.InvalidColumnException;
 import com.okto.jalokduitnow.exception.InvalidTransactionException;
 import com.okto.jalokduitnow.model.*;
 import com.okto.jalokduitnow.schema.ColumnDefinition;
+import com.okto.jalokduitnow.schema.FieldEditor;
+import com.okto.jalokduitnow.schema.FieldType;
 import com.okto.jalokduitnow.schema.TableSchema;
 import com.okto.jalokduitnow.service.CategoryService;
 import javafx.collections.FXCollections;
@@ -24,7 +26,8 @@ import java.util.UUID;
 /**
  * Add/edit form: fixed core fields plus one field per visible custom column (built from the schema).
  * Validation errors are shown inline and keep the dialog open.
- * Custom fields are plain text for now; Stage 5 swaps in typed editors.
+ * Each custom field is the editor of its column's type (text, number, date picker, choice list, yes/no),
+ * so a column added on the Columns page shows up here with the right control, without a restart.
  */
 public final class TransactionDialog {
     private TransactionDialog() {}
@@ -75,15 +78,13 @@ public final class TransactionDialog {
         grid.addRow(3, new Label("Jumlah (Rp)"), amount);
 
         // one field per visible custom column
-        Map<String, TextField> customFields = new LinkedHashMap<>();
+        Map<String, FieldEditor<?>> customFields = new LinkedHashMap<>();
         int row = 4;
         for (ColumnDefinition col : schema.visibleColumns()) {
-            TextField field = new TextField();
-            if (existing != null) field.setText(col.getType().displayValue(existing.getCustomValue(col.getId())));
-            field.setPromptText(col.getType().displayName()
-                    + (col.getType().options().isEmpty() ? "" : ": " + String.join(" / ", col.getType().options())));
-            customFields.put(col.getId(), field);
-            grid.addRow(row++, new Label(col.getName() + (col.isRequired() ? " *" : "")), field);
+            FieldEditor<?> editor = editorFor(col.getType(), existing == null ? null : existing.getCustomValue(col.getId()));
+            editor.control().setPrefWidth(260);
+            customFields.put(col.getId(), editor);
+            grid.addRow(row++, new Label(col.getName() + (col.isRequired() ? " *" : "")), editor.control());
         }
         grid.add(error, 0, row, 2, 1);
         dialog.getDialogPane().setContent(grid);
@@ -94,7 +95,15 @@ public final class TransactionDialog {
         ok.addEventFilter(javafx.event.ActionEvent.ACTION, ev -> {
             try {
                 Map<String, String> input = new LinkedHashMap<>();
-                customFields.forEach((id, f) -> input.put(id, f.getText()));
+                for (ColumnDefinition col : schema.visibleColumns()) {
+                    FieldEditor<?> editor = customFields.get(col.getId());
+                    try {
+                        Object value = editor.getValue();      // typed value, or null when left empty
+                        input.put(col.getId(), value == null ? "" : col.getType().formatValue(value));
+                    } catch (InvalidColumnException e) {
+                        throw new InvalidColumnException(col.getName() + ": " + e.getMessage());
+                    }
+                }
                 Map<String, Object> merged = schema.applyInput(
                         existing == null ? Map.of() : existing.getCustomValues(), input);
                 built[0] = build(existing, date.getValue(), type.getValue(),
@@ -106,6 +115,19 @@ public final class TransactionDialog {
         });
 
         return dialog.showAndWait().filter(b -> b == ButtonType.OK).map(b -> built[0]);
+    }
+
+    /** A new editor for the column type, showing the existing value if there is one. */
+    private static <T> FieldEditor<T> editorFor(FieldType<T> type, Object existingValue) {
+        FieldEditor<T> editor = type.createEditor();
+        if (existingValue != null) {
+            try {
+                editor.setValue(type.check(existingValue));
+            } catch (InvalidColumnException e) {
+                // a value that no longer fits the type is left out of the form
+            }
+        }
+        return editor;
     }
 
     private static Transaction build(Transaction existing, LocalDate date, String type, Category category,

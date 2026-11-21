@@ -83,6 +83,11 @@ public class TableSchema {
         return result;
     }
 
+    /** Throws if the name is blank or used by another column (ignoring case). Used to validate before changing anything. */
+    public void validateName(String name, String ignoreColumnId) throws InvalidColumnException {
+        checkNameFree(name, ignoreColumnId == null ? null : find(ignoreColumnId).orElse(null));
+    }
+
     private void checkNameFree(String name, ColumnDefinition self) throws InvalidColumnException {
         if (name == null || name.isBlank()) throw new InvalidColumnException("Nama kolom wajib diisi");
         for (ColumnDefinition c : columns) {

@@ -39,6 +39,7 @@
 .ikonli-font-icon.icon-white { -fx-icon-color: white; }
 .tile-locked .ikonli-font-icon { -fx-icon-color: -muted; }
 .icon-muted { -fx-icon-color: -muted; }
+.ikonli-font-icon.icon-warning { -fx-icon-color: -warning; }
 .icon-accent { -fx-icon-color: -accent-text; }
 .tile-locked { -fx-background-color: -track; }
 .toggle-button.icon-choice { -fx-background-color: -input-bg; -fx-background-radius: 10; -fx-padding: 8; -fx-cursor: hand; }

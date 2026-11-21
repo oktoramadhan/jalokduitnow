@@ -14,7 +14,7 @@ public final class AchievementCatalog {
                 new BudgetAchievement(),
                 new SavingsAchievement(50, "Setengah Jalan", "star"),
                 new SavingsAchievement(100, "Target Tercapai", "trophy"),
-                new ColumnBuilderAchievement(3),
+                new ColumnBuilderAchievement(1),
                 new CategoryCustomizerAchievement(3));
     }
 }

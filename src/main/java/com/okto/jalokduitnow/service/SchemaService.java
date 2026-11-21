@@ -9,7 +9,10 @@ import com.okto.jalokduitnow.storage.TransactionDto;
 import com.okto.jalokduitnow.thread.AutoSaveService;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /**
@@ -21,6 +24,9 @@ import java.util.function.Consumer;
 public class SchemaService {
     /** What a type change would do to existing values. */
     public record TypeChangeImpact(long total, long incompatible) {}
+
+    /** Id of the free-text column every new schema starts with (it is not counted as a column the user built). */
+    public static final String DEFAULT_COLUMN_ID = TransactionDto.LEGACY_DESCRIPTION_COLUMN;
 
     private final Repository<ColumnDto> repository;
     private final AutoSaveService<ColumnDto> autoSave;
@@ -51,7 +57,7 @@ public class SchemaService {
         List<ColumnDto> saved = repository.findAll();
         try {
             if (saved.isEmpty()) {
-                schema.add(new ColumnDefinition(TransactionDto.LEGACY_DESCRIPTION_COLUMN, "Keterangan", new TextType(), false));
+                schema.add(new ColumnDefinition(DEFAULT_COLUMN_ID, "Keterangan", new TextType(), false));
                 save();
                 return;
             }
@@ -80,6 +86,65 @@ public class SchemaService {
     public void move(String id, int newIndex) throws InvalidColumnException {
         schema.move(id, newIndex);
         save();
+    }
+
+    /** Checks a column name (blank, duplicate) without changing anything, so a form can validate before it asks questions. */
+    public void validateName(String name, String columnId) throws InvalidColumnException {
+        schema.validateName(name, columnId);
+    }
+
+    /**
+     * Renames the column and sets whether it is required, together: if the new name is invalid or already used,
+     * nothing changes. (Changing the type or the options is a separate, data-aware step.)
+     */
+    public void updateColumn(String id, String newName, boolean required) throws InvalidColumnException {
+        ColumnDefinition col = schema.require(id);
+        schema.rename(id, newName);   // validates: not blank, not a duplicate
+        col.setRequired(required);
+        save();
+    }
+
+    /** How many transactions use each option of a Choice column, in option order (0 for unused ones). */
+    public Map<String, Long> optionUsage(String id) throws InvalidColumnException {
+        ColumnDefinition col = schema.require(id);
+        if (!(col.getType() instanceof ChoiceType choice)) throw new InvalidColumnException("Kolom ini bukan kolom Pilihan");
+        Map<String, Long> usage = new LinkedHashMap<>();
+        for (String option : choice.options()) usage.put(option, 0L);
+        for (var t : finance.getAll()) {
+            Object v = t.getCustomValue(id);
+            if (v instanceof String s && usage.containsKey(s)) usage.merge(s, 1L, Long::sum);
+        }
+        return usage;
+    }
+
+    /**
+     * Replaces the options of a Choice column. {@code valueMapping} says what happens to values of OLD options:
+     * a rename maps old to new name, a removal maps old to a replacement option. An option that stays needs no entry.
+     * A removed option that is still used and has no replacement is refused, so no value is ever lost silently.
+     * (An unused removed option needs no replacement.)
+     */
+    public void updateChoiceOptions(String id, List<String> newOptions, Map<String, String> valueMapping)
+            throws InvalidColumnException {
+        ColumnDefinition col = schema.require(id);
+        if (!(col.getType() instanceof ChoiceType oldType)) throw new InvalidColumnException("Kolom ini bukan kolom Pilihan");
+        ChoiceType newType = new ChoiceType(newOptions);          // validates: at least one option, no duplicates
+        Map<String, Long> usage = optionUsage(id);
+
+        Map<String, String> resolved = new HashMap<>();           // old option -> option it becomes
+        for (String old : oldType.options()) {
+            String wanted = valueMapping.getOrDefault(old, old);
+            String match = newType.options().stream().filter(o -> o.equalsIgnoreCase(wanted)).findFirst().orElse(null);
+            if (match == null && usage.getOrDefault(old, 0L) > 0) {
+                throw new InvalidColumnException("Opsi '" + old + "' dipakai di " + usage.get(old)
+                        + " transaksi. Pilih opsi pengganti.");
+            }
+            if (match != null) resolved.put(old, match);
+        }
+        col.setType(newType);
+        save();
+        if (usage.values().stream().anyMatch(n -> n > 0)) {
+            finance.transformCustomValues(col, v -> resolved.get(String.valueOf(v)));
+        }
     }
 
     /** Hiding is safe: values stay stored and come back when the column is shown again. */

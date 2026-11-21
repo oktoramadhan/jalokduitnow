@@ -106,15 +106,16 @@ class GameServiceTest {
 
     @Test
     void anEntryIsOnlyCompleteWhenEveryRequiredColumnIsFilled() throws Exception {
-        ColumnDefinition note = fx.schema.addColumn("Catatan", new TextType(), true);
+        ColumnDefinition note = fx.schema.addColumn("Catatan", new TextType(), true);   // also unlocks the column badge
+        long base = game.profile().getXp();
 
         add(food, 1_000);                                       // required column empty: no +3
-        assertEquals(5 + 10, game.profile().getXp());
+        assertEquals(base + 5 + 10, game.profile().getXp());
 
         Transaction filled = new Expense(clock.today(), food, 1_000);
         filled.setCustomValue(note, "ok");
         fx.finance.add(filled);
-        assertEquals(5 + 10 + 5 + 3, game.profile().getXp());
+        assertEquals(base + 5 + 10 + 5 + 3, game.profile().getXp());
     }
 
     @Test
@@ -254,11 +255,9 @@ class GameServiceTest {
     // ---- badges ----
 
     @Test
-    void aBadgeUnlocksOnceGivesXpAndStaysUnlocked() throws Exception {
+    void creatingTheFirstCustomColumnUnlocksTheBadgeAndAwardsXpOnce() throws Exception {
         long before = game.profile().getXp();
-        fx.schema.addColumn("A", new TextType(), false);          // schema already has "Keterangan": 2 columns
-        assertTrue(eventsOf(GameEvent.BadgeUnlocked.class).isEmpty());
-        ColumnDefinition third = fx.schema.addColumn("B", new TextType(), false);
+        ColumnDefinition first = fx.schema.addColumn("Jenis", new TextType(), false);
 
         List<GameEvent.BadgeUnlocked> unlocked = eventsOf(GameEvent.BadgeUnlocked.class);
         assertEquals(1, unlocked.size());
@@ -266,12 +265,13 @@ class GameServiceTest {
         assertEquals(clock.today(), unlocked.get(0).date());
         assertEquals(before + 100, game.profile().getXp());       // +100 XP for a badge
 
-        game.profile().getXp();
-        fx.schema.deleteColumn(third.getId(), true);              // the condition is no longer true...
+        fx.schema.deleteColumn(first.getId(), true);              // the condition is no longer true...
         Achievement builder = game.achievements().stream().filter(a -> a.getId().equals("column-builder")).findFirst().orElseThrow();
         assertEquals(clock.today(), game.unlockedOn(builder).orElseThrow());   // ...but the badge stays
-        fx.schema.addColumn("C", new TextType(), false);
-        assertEquals(1, eventsOf(GameEvent.BadgeUnlocked.class).size());       // and is not awarded twice
+
+        fx.schema.addColumn("Lain", new TextType(), false);       // building another does not pay again
+        assertEquals(1, eventsOf(GameEvent.BadgeUnlocked.class).size());
+        assertEquals(before + 100, game.profile().getXp());
     }
 
     // ---- savings goals ----

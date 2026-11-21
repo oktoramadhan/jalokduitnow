@@ -236,5 +236,4 @@ docs/                 daftar uji manual dan tangkapan layar
 
 ## Lisensi
 
-Belum ada lisensi. Pilih lisensi yang sesuai (misalnya MIT atau Apache-2.0) dan tambahkan file `LICENSE` di root proyek
-sebelum membagikan kode atau installer secara publik.
+MIT. Lihat file [LICENSE](LICENSE).

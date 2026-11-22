@@ -18,7 +18,7 @@ kecuali kamu sendiri menekan tombol berbagi.
 - Transaksi pemasukan dan pengeluaran: tambah, ubah, hapus, cari, dan filter per periode.
 - Kolom kustom (teks, angka, tanggal, ya/tidak, pilihan; bisa diwajibkan) lewat halaman **Kolom**.
 - Kategori kustom dengan ikon vektor, budget bulanan, arsip, dan gabung kategori (halaman **Kategori**).
-- Beranda berisi ringkasan, grafik lingkaran dan batang, dan rentang tahun yang menyesuaikan data.
+- Beranda berisi ringkasan pemasukan, pengeluaran, dan saldo, grafik lingkaran dan batang, dan rentang tahun yang menyesuaikan data.
 - Gamifikasi: XP, level, streak dengan freeze token, badge, quest mingguan, dan target tabungan (halaman **Quest & Badge**).
 - Laporan bulanan (halaman **Laporan**): laporan pribadi dan laporan donor dalam teks polos.
 - Berbagi laporan ke donor lewat WhatsApp atau clipboard.
@@ -27,7 +27,7 @@ kecuali kamu sendiri menekan tombol berbagi.
 - Ekspor transaksi ke CSV dan cadangan lengkap ke JSON.
 - Cadangan otomatis harian, pulihkan dari cadangan dengan pratinjau dan cadangan pengaman.
 - Zona Berbahaya: hapus semua transaksi, reset progres game, dan reset pabrik, masing-masing dengan konfirmasi dan cadangan pengaman.
-- Tema terang dan gelap.
+- Tema terang dan gelap, dengan palet grafit netral dan sidebar yang bisa diciutkan menjadi deretan ikon.
 
 Dokumentasi tiap fitur beserta cara kerjanya: [docs/fitur/00-index.md](docs/fitur/00-index.md).
 Cara kerja seluruh aplikasi (startup, arsitektur, event, thread, waktu, error): [docs/cara-kerja-aplikasi.md](docs/cara-kerja-aplikasi.md).
@@ -38,8 +38,8 @@ Unduh installer dari halaman rilis: `https://github.com/oktoramadhan/jalokduitno
 
 | Sistem | File | Dibuat oleh |
 |--------|------|-------------|
-| Windows | `JalokDuitNow-1.0.0.msi` | `mvn -Pinstaller-windows package` |
-| macOS | `JalokDuitNow-1.0.0.dmg` | `mvn -Pinstaller-mac package` |
+| Windows | `JalokDuitNow-1.1.0.msi` | `mvn -Pinstaller-windows package` |
+| macOS | `JalokDuitNow-1.1.0.dmg` | `mvn -Pinstaller-mac package` |
 
 Installer belum ditandatangani, jadi sistem operasi akan memperingatkan saat pertama kali dibuka. Ini normal untuk
 aplikasi tanpa sertifikat penerbit.
@@ -88,8 +88,8 @@ di sistem operasinya sendiri**: `.msi` hanya di Windows, `.dmg` hanya di macOS. 
 
 | Sistem | Prasyarat | Perintah | Hasil |
 |--------|-----------|----------|-------|
-| Windows | WiX Toolset 3.x di `PATH` | `mvn -DskipTests -Pinstaller-windows package` | `target/installer/output/JalokDuitNow-1.0.0.msi` |
-| macOS | Xcode Command Line Tools (`xcode-select --install`) | `mvn -DskipTests -Pinstaller-mac package` | `target/installer/output/JalokDuitNow-1.0.0.dmg` |
+| Windows | WiX Toolset 3.x di `PATH` | `mvn -DskipTests -Pinstaller-windows package` | `target/installer/output/JalokDuitNow-1.1.0.msi` |
+| macOS | Xcode Command Line Tools (`xcode-select --install`) | `mvn -DskipTests -Pinstaller-mac package` | `target/installer/output/JalokDuitNow-1.1.0.dmg` |
 
 Profil yang sesuai juga aktif otomatis jika kamu menambahkan `-Dinstaller`:
 
@@ -111,7 +111,7 @@ dengan JDK 21:
 1. Job `test` menjalankan `mvn verify` di ketiga sistem.
 2. Job `installer` membuat `.msi` (Windows) dan `.dmg` (macOS) dan mengunggahnya sebagai artifact `installer-windows-latest`
    dan `installer-macos-latest` di halaman run.
-3. Saat kamu mendorong tag berawalan `v` (misalnya `v1.0.0`), job `release` melampirkan installer ke GitHub Release.
+3. Saat kamu mendorong tag berawalan `v` (misalnya `v1.1.0`), job `release` melampirkan installer ke GitHub Release.
 
 ## Lokasi data
 
